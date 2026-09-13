@@ -3,7 +3,7 @@ import {
   ShieldCheck,
   Plus,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface StaffMember {
   id: string;
@@ -77,7 +77,7 @@ export const StaffPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => toast.info('Invite Staff Member Dialog Opened')}
+          onClick={() => toast('Invite Staff Member Dialog Opened', { icon: 'ℹ️' })}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C19B48] hover:bg-[#D8B862] text-[#1E1E1E] text-xs font-bold transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
@@ -126,7 +126,7 @@ export const StaffPage: React.FC = () => {
 
                   <td className="py-3.5 px-4 text-right">
                     <button
-                      onClick={() => toast.info(`Editing permissions for ${member.name}`)}
+                      onClick={() => toast(`Editing permissions for ${member.name}`, { icon: 'ℹ️' })}
                       className="px-2.5 py-1 rounded-lg bg-[#262626] hover:bg-[#C19B48] text-[#F7F3E6] hover:text-[#1E1E1E] border border-[#3D3D3D] text-xs font-semibold transition-colors cursor-pointer"
                     >
                       Edit Access

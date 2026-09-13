@@ -5,7 +5,7 @@ import {
   Upload,
   Clock,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface PendingCopy {
   id: string;
@@ -76,9 +76,12 @@ export const MainsInboxPage: React.FC = () => {
     e.preventDefault();
     if (!activeGradingCopy) return;
 
-    toast.success(`Evaluated copy returned to ${activeGradingCopy.studentName}`, {
-      description: `Score: ${score}/${activeGradingCopy.maxScore} • Remarks synchronized to Student Portal.`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Evaluated copy returned to {activeGradingCopy.studentName}</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Score: {score}/{activeGradingCopy.maxScore} • Remarks synchronized to Student Portal.</div>
+      </div>
+    );
     setCopies((prev) => prev.filter((c) => c.id !== activeGradingCopy.id));
     setActiveGradingCopy(null);
     setScore('');
@@ -162,7 +165,7 @@ export const MainsInboxPage: React.FC = () => {
             <div className="sm:col-span-3 flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => toast.info('Downloaded student original PDF')}
+                onClick={() => toast('Downloaded student original PDF', { icon: '📄' })}
                 className="px-3.5 py-2 rounded-xl bg-[#1E1E1E] hover:bg-[#2F2F2F] text-[#A8A294] hover:text-[#F7F3E6] border border-[#3D3D3D] transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { StudentRecord } from '../../types/student-directory';
 import { VideoProgressBar } from '../../components/students/VideoProgressBar';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface StudentDetailDrawerProps {
   isOpen: boolean;
@@ -57,15 +57,22 @@ export const StudentDetailDrawer: React.FC<StudentDetailDrawerProps> = ({
   }, [student, videoSearch, selectedSubject]);
 
   const handleSendWhatsAppAlert = () => {
-    toast.success(`WhatsApp Video Catchup Notification Sent`, {
-      description: `Targeted WhatsApp message sent to ${student.name} (${student.phone}) highlighting pending lectures.`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">WhatsApp Video Catchup Notification Sent</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Targeted WhatsApp message sent to {student.name} ({student.phone}) highlighting pending lectures.</div>
+      </div>
+    );
   };
 
   const handleRevokeDevice = () => {
-    toast.info(`Device Sessions Reset for ${student.name}`, {
-      description: 'Logged out of all active web and mobile app instances.',
-    });
+    toast(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Device Sessions Reset for {student.name}</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Logged out of all active web and mobile app instances.</div>
+      </div>,
+      { icon: '🔄' }
+    );
   };
 
   return (

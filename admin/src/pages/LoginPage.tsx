@@ -9,7 +9,7 @@ import {
   ArrowRight,
   UserCheck,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface AdminProfile {
   name: string;
@@ -90,10 +90,13 @@ export const LoginPage: React.FC = () => {
       localStorage.setItem('rla_admin_session', JSON.stringify(sessionData));
       setIsLoading(false);
 
-      toast.success(`Welcome to Executive Chambers, ${profile.name}`, {
-        description: `Authenticated with ${profile.title} privileges.`,
-        duration: 3500,
-      });
+      toast.success(
+        <div>
+          <div className="font-semibold text-[#F7F3E6]">Welcome to Executive Chambers, {profile.name}</div>
+          <div className="text-xs text-[#A8A294] mt-0.5">Authenticated with {profile.title} privileges.</div>
+        </div>,
+        { duration: 3500 }
+      );
 
       navigate('/');
     }, 500);
@@ -149,7 +152,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() =>
-                    toast.info('For administrative credentials recovery, please contact IT Chambers.')
+                    toast('For administrative credentials recovery, please contact IT Chambers.', { icon: 'ℹ️' })
                   }
                   className="text-[11px] text-[#C19B48] hover:text-[#D8B862] transition-colors cursor-pointer"
                 >

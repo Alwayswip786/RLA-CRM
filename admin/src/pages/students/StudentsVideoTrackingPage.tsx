@@ -14,7 +14,7 @@ import { MOCK_STUDENTS } from '../../data/mockStudentDirectory';
 import type { StudentRecord } from '../../types/student-directory';
 import { StudentDetailDrawer } from './StudentDetailDrawer';
 import { VideoProgressBar } from '../../components/students/VideoProgressBar';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface FlattenedVideoLog {
   student: StudentRecord;
@@ -90,9 +90,12 @@ export const StudentsVideoTrackingPage: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    toast.success('Playback Telemetry Exported', {
-      description: `Generated CSV timestamp audit for ${filteredLogs.length} playback sessions.`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Playback Telemetry Exported</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Generated CSV timestamp audit for {filteredLogs.length} playback sessions.</div>
+      </div>
+    );
   };
 
   return (

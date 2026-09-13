@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { adminSidebarItems, type AdminNavMainItem } from '../../navigation/admin-sidebar-items';
 import { cn } from '../../utils/cn';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface AdminSidebarProps {
   isCollapsed: boolean;
@@ -58,7 +58,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const handleLogout = () => {
     localStorage.removeItem('rla_admin_session');
-    toast.info('Signed out of Chamber Administration');
+    toast('Signed out of Chamber Administration', { icon: '👋' });
     navigate('/login');
   };
 

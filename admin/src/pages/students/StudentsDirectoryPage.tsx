@@ -14,7 +14,7 @@ import type { StudentRecord } from '../../types/student-directory';
 import { StudentDetailDrawer } from './StudentDetailDrawer';
 import { VideoProgressBar } from '../../components/students/VideoProgressBar';
 import { CourseMetricsPanel } from '../../components/students/CourseMetricsPanel';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 export const StudentsDirectoryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,9 +86,12 @@ export const StudentsDirectoryPage: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    toast.success('Exporting Student Course Progress & Video Logs to CSV', {
-      description: `Generated report for ${filteredStudents.length} students with exact timestamp records.`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Exporting Student Course Progress & Video Logs to CSV</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Generated report for {filteredStudents.length} students with exact timestamp records.</div>
+      </div>
+    );
   };
 
   return (

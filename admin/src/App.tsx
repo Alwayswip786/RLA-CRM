@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -46,17 +46,31 @@ import { StaffPage } from './pages/campus/StaffPage';
 function App() {
   return (
     <BrowserRouter>
-      {/* Dark Themed Luxury Toast Notifications */}
+      {/* Dark Themed Toast Notifications via react-hot-toast */}
       <Toaster
         position="top-right"
-        theme="dark"
-        richColors
-        closeButton
         toastOptions={{
+          duration: 3500,
           style: {
-            backgroundColor: '#1E1E1E',
-            border: '1px solid #3D3D3D',
+            background: '#1E1E1E',
             color: '#F7F3E6',
+            border: '1px solid #3D3D3D',
+            borderRadius: '12px',
+            fontSize: '13px',
+            boxShadow: 'none',
+            padding: '12px 16px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#34D399',
+              secondary: '#1E1E1E',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#1E1E1E',
+            },
           },
         }}
       />

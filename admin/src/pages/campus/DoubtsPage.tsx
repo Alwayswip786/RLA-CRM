@@ -3,7 +3,7 @@ import {
   MessageSquare,
   Send,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface DoubtTicket {
   id: string;
@@ -61,9 +61,12 @@ export const DoubtsPage: React.FC = () => {
           : t
       )
     );
-    toast.success('Reply Sent to Student Classroom Portal', {
-      description: 'Audio & text response synchronized to student Doubt Desk.',
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Reply Sent to Student Classroom Portal</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Audio & text response synchronized to student Doubt Desk.</div>
+      </div>
+    );
     setActiveTicketId(null);
     setReplyText('');
   };

@@ -4,7 +4,7 @@ import {
   Clock,
   Plus,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface InterviewSlot {
   id: string;
@@ -68,7 +68,7 @@ export const InterviewsPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => toast.info('New Interview Slot Scheduling Modal')}
+          onClick={() => toast('New Interview Slot Scheduling Modal', { icon: 'ℹ️' })}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C19B48] hover:bg-[#D8B862] text-[#1E1E1E] text-xs font-bold transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />

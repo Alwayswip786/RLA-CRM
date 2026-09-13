@@ -6,7 +6,7 @@ import {
   Plus,
   Clock,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface LeadCard {
   id: string;
@@ -97,9 +97,12 @@ export const LeadsPipelinePage: React.FC = () => {
     setLeads((prev) =>
       prev.map((lead) => (lead.id === id ? { ...lead, stage: newStage } : lead))
     );
-    toast.success('Lead Stage Updated', {
-      description: `Moved candidate to ${newStage.replace('_', ' ').toUpperCase()}`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Lead Stage Updated</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Moved candidate to {newStage.replace('_', ' ').toUpperCase()}</div>
+      </div>
+    );
   };
 
   const columns: { stage: LeadCard['stage']; label: string; color: string }[] = [
@@ -146,7 +149,7 @@ export const LeadsPipelinePage: React.FC = () => {
             />
           </div>
           <button
-            onClick={() => toast.info('New Lead Registration Form Opened')}
+            onClick={() => toast('New Lead Registration Form Opened', { icon: 'ℹ️' })}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C19B48] hover:bg-[#D8B862] text-[#1E1E1E] text-xs font-bold transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />

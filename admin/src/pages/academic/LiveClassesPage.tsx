@@ -8,7 +8,7 @@ import {
   StopCircle,
   MessageSquare,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 export const LiveClassesPage: React.FC = () => {
   const [isLiveActive, setIsLiveActive] = useState(true);
@@ -16,9 +16,12 @@ export const LiveClassesPage: React.FC = () => {
 
   const handleCopyKey = () => {
     navigator.clipboard.writeText(streamKey);
-    toast.success('Stream Key Copied to Clipboard', {
-      description: 'Paste into OBS Studio or vMix encoder to start broadcast.',
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Stream Key Copied to Clipboard</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Paste into OBS Studio or vMix encoder to start broadcast.</div>
+      </div>
+    );
   };
 
   return (

@@ -3,7 +3,7 @@ import {
   Newspaper,
   Send,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface DigestEntry {
   id: string;
@@ -56,9 +56,12 @@ export const DailyDigestPage: React.FC = () => {
       toast.error('Please enter title and ratio summary');
       return;
     }
-    toast.success('Daily Legal Digest Published to Student Classroom Portals', {
-      description: `"${title}" has been broadcast to all enrolled cohorts.`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Daily Legal Digest Published to Student Classroom Portals</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">"{title}" has been broadcast to all enrolled cohorts.</div>
+      </div>
+    );
     setTitle('');
     setRatioText('');
   };

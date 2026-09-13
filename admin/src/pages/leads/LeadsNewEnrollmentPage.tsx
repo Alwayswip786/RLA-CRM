@@ -4,7 +4,7 @@ import {
   GraduationCap,
   CheckCircle2,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 export const LeadsNewEnrollmentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -26,9 +26,12 @@ export const LeadsNewEnrollmentPage: React.FC = () => {
       return;
     }
 
-    toast.success(`Student Enrolled Successfully!`, {
-      description: `Assigned Roll #RLA-2026-${Math.floor(100 + Math.random() * 900)} to ${formData.fullName}. RFID Gate pass active.`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Student Enrolled Successfully!</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Assigned Roll #RLA-2026-{Math.floor(100 + Math.random() * 900)} to {formData.fullName}. RFID Gate pass active.</div>
+      </div>
+    );
     navigate('/students/roster');
   };
 

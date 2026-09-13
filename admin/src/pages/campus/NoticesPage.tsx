@@ -3,7 +3,7 @@ import {
   BellRing,
   Send,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface NoticeItem {
   id: string;
@@ -56,9 +56,12 @@ export const NoticesPage: React.FC = () => {
       toast.error('Please enter notice title and content');
       return;
     }
-    toast.success('Notice Broadcasted to Student Classroom Portals', {
-      description: `Push alert sent to enrolled student mobile and web apps.`,
-    });
+    toast.success(
+      <div>
+        <div className="font-semibold text-[#F7F3E6]">Notice Broadcasted to Student Classroom Portals</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">Push alert sent to enrolled student mobile and web apps.</div>
+      </div>
+    );
     setTitle('');
     setContent('');
   };

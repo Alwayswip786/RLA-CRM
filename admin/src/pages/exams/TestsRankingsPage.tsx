@@ -3,7 +3,7 @@ import {
   Award,
   Trophy,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 
 interface RankEntry {
   rank: number;
@@ -132,7 +132,7 @@ export const TestsRankingsPage: React.FC = () => {
 
                   <td className="py-3.5 px-4 text-right">
                     <button
-                      onClick={() => toast.info(`Viewing scorecard for ${entry.name}`)}
+                      onClick={() => toast(`Viewing scorecard for ${entry.name}`, { icon: '📊' })}
                       className="px-2.5 py-1 rounded-lg bg-[#262626] hover:bg-[#C19B48] text-[#F7F3E6] hover:text-[#1E1E1E] border border-[#3D3D3D] text-xs font-semibold transition-colors cursor-pointer"
                     >
                       Scorecard
