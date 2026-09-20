@@ -12,6 +12,9 @@ import {
 import { SearchDialog } from './SearchDialog';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { toast } from 'sonner';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useNoticeStore } from '../../store/useNoticeStore';
+import { cn } from '../../utils/cn';
 
 interface StudentNavbarProps {
   isCollapsed: boolean;
@@ -25,6 +28,23 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const displayName = user?.name || 'Advocate Aspirant';
+  const displayRoll = user?.rollNo || '';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase() || 'RL';
+
+  const notices = useNoticeStore((state) => state.notices);
+  const noticeUnreadCount = useNoticeStore((state) => state.unreadCount);
+  const noticeTotalCount = useNoticeStore((state) => state.totalCount);
+
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -58,7 +78,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('rla_student_session');
+    logout();
     toast.info('Signed out of Classroom Portal');
     navigate('/login');
   };
@@ -138,7 +158,9 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
               className="relative p-2 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#c19b48]" />
+              {noticeUnreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-white dark:ring-[#061120]" />
+              )}
             </button>
 
             {isNotificationOpen && (
@@ -147,41 +169,58 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
                   <h4 className="text-xs font-serif font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                     Classroom Notices
                   </h4>
-                  <span className="text-[10px] bg-[#c19b48]/20 text-[#c19b48] dark:text-[#e8cf8d] px-2 py-0.5 rounded-full font-semibold">
-                    3 New
+                  <span
+                    className={cn(
+                      'text-[10px] px-2 py-0.5 rounded-full font-bold transition-all',
+                      noticeUnreadCount > 0
+                        ? 'bg-amber-500/15 dark:bg-amber-500/20 text-amber-900 dark:text-amber-300 border border-amber-500/30'
+                        : 'bg-slate-100 dark:bg-[#143564]/50 text-slate-600 dark:text-slate-400'
+                    )}
+                  >
+                    {noticeUnreadCount > 0 ? `${noticeUnreadCount} New` : `${noticeTotalCount} Total`}
                   </span>
                 </div>
 
                 <div className="divide-y divide-slate-100 dark:divide-[#143564]/60 max-h-72 overflow-y-auto">
-                  <div className="py-2.5 space-y-1">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white">
-                      Mains Mock Test 3 Evaluated
-                    </p>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                      Adv. Rajinder Sir added remarks on your Criminal Law answer copy.
-                    </p>
-                    <span className="text-[10px] text-[#c19b48] font-medium">2 hours ago</span>
-                  </div>
-
-                  <div className="py-2.5 space-y-1">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white">
-                      Live Lecture Schedule Updated
-                    </p>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                      CPC Section 9 to 14 streaming starts today at 5:00 PM.
-                    </p>
-                    <span className="text-[10px] text-slate-400">Today, 10:15 AM</span>
-                  </div>
-
-                  <div className="py-2.5 space-y-1">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white">
-                      New Bare Act Notes Added
-                    </p>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                      BNS vs IPC comparative cross-reference table ready for download.
-                    </p>
-                    <span className="text-[10px] text-slate-400">Yesterday</span>
-                  </div>
+                  {notices.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                      No official circulars promulgated yet.
+                    </div>
+                  ) : (
+                    notices.slice(0, 4).map((notice) => (
+                      <div
+                        key={notice._id}
+                        onClick={() => {
+                          setIsNotificationOpen(false);
+                          navigate('/dashboard/notices');
+                        }}
+                        className="py-2.5 space-y-1 hover:bg-slate-50 dark:hover:bg-white/[0.03] px-1 rounded-lg cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-1">
+                            {notice.title}
+                          </p>
+                          {notice.priority === 'urgent' && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-rose-500/20 text-rose-600 dark:text-rose-400 shrink-0">
+                              URGENT
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2">
+                          {notice.content}
+                        </p>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <span className="text-[#c19b48] font-medium">{notice.circularNo}</span>
+                          <span>
+                            {new Date(notice.publishedAt).toLocaleDateString('en-IN', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 dark:border-[#143564] text-center">
@@ -192,7 +231,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
                     }}
                     className="text-xs text-[#c19b48] hover:underline font-semibold cursor-pointer"
                   >
-                    View All Academy Notices →
+                    View All Academy Notices ({noticeTotalCount}) →
                   </button>
                 </div>
               </div>
@@ -210,18 +249,18 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
               className="flex items-center gap-2 p-1 sm:px-2 sm:py-1 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all cursor-pointer"
             >
               <div className="w-7 h-7 rounded-lg bg-[#c19b48]/20 text-[#c19b48] dark:text-[#e8cf8d] border border-[#c19b48]/40 flex items-center justify-center font-bold text-xs">
-                RV
+                {initials}
               </div>
               <span className="hidden sm:inline text-xs font-semibold text-slate-900 dark:text-white max-w-24 truncate">
-                Adv. Rohit
+                {displayName}
               </span>
             </button>
 
             {isUserMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-2xl p-2 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-3 py-2 border-b border-slate-100 dark:border-[#143564] mb-1">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white">Adv. Rohit Verma</p>
-                  <p className="text-[10px] text-[#c19b48] font-mono">Roll: RLA2025019</p>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
+                  <p className="text-[10px] text-[#c19b48] font-mono">Roll: {displayRoll}</p>
                   <span className="text-[10px] text-slate-500 dark:text-slate-400">Batch 2025-26</span>
                 </div>
 

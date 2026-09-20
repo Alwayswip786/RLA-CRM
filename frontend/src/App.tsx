@@ -1,8 +1,18 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { useAuthStore } from './store/useAuthStore';
 import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
+import { MobileVerification } from './pages/auth/MobileVerification';
+import { EmailVerification } from './pages/auth/EmailVerification';
+import { OAuthCallback } from './pages/auth/OAuthCallback';
+import { LandingIntroPage } from './pages/LandingIntroPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { GuestRoute } from './components/auth/GuestRoute';
+import { OnboardingRoute } from './components/auth/OnboardingRoute';
+import { OnboardingPage } from './pages/auth/OnboardingPage';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { DashboardPreview } from './pages/DashboardPreview';
 import { LiveClassesPage } from './pages/dashboard/LiveClassesPage';
@@ -29,25 +39,100 @@ import { CourseDetailPage } from './pages/dashboard/courses/CourseDetailPage';
 import { LecturePlayerPage } from './pages/dashboard/courses/LecturePlayerPage';
 
 function App() {
+  const initSession = useAuthStore((state) => state.initSession);
+
+  useEffect(() => {
+    initSession();
+  }, [initSession]);
+
   return (
     <BrowserRouter>
       {/* Toast Notification Container */}
       <Toaster position="top-right" richColors closeButton />
 
       <Routes>
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        {/* Auth Routes (Guest Only) */}
+        <Route
+          path="/login"
+          element={
+            <GuestRoute>
+              <Login />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <GuestRoute>
+              <Signup />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/mobile-verification"
+          element={
+            <GuestRoute>
+              <MobileVerification />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/email-verification"
+          element={
+            <GuestRoute>
+              <EmailVerification />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <GuestRoute>
+              <ForgotPassword />
+            </GuestRoute>
+          }
+        />
+        <Route path="/auth/success" element={<OAuthCallback />} />
+
+        {/* Dedicated Student Onboarding Route */}
+        <Route
+          path="/onboarding"
+          element={
+            <OnboardingRoute>
+              <OnboardingPage />
+            </OnboardingRoute>
+          }
+        />
 
         {/* Fullscreen Immersive Classroom / Lecture Player */}
-        <Route path="/dashboard/courses/:courseId/learn/:lessonId" element={<LecturePlayerPage />} />
+        <Route
+          path="/dashboard/courses/:courseId/learn/:lessonId"
+          element={
+            <ProtectedRoute>
+              <LecturePlayerPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Fullscreen Course Detail (without navbar or sidebar) */}
-        <Route path="/dashboard/courses/:courseId" element={<CourseDetailPage />} />
+        <Route
+          path="/dashboard/courses/:courseId"
+          element={
+            <ProtectedRoute>
+              <CourseDetailPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Classroom Portal / Dashboard Nested Routes */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<DashboardPreview />} />
           <Route path="courses" element={<CoursesHubPage />} />
           <Route path="live-classes" element={<LiveClassesPage />} />
@@ -83,9 +168,9 @@ function App() {
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 
-        {/* Fallback to Login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Landing / Welcome Screen */}
+        <Route path="/" element={<LandingIntroPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

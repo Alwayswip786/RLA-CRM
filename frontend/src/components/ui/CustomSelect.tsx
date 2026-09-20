@@ -173,7 +173,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       {/* Optional Top Label */}
       {label && (
         <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-          {label} {required && <span className="text-[#c19b48]">*</span>}
+          {label} {required && <span className="text-red-500 font-bold">*</span>}
         </label>
       )}
 

@@ -6,16 +6,21 @@ import {
   MapPin,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export const StudentIdPage: React.FC = () => {
+  const user = useAuthStore((state) => state.user);
+
   const student = {
-    name: 'Adv. Rohit Verma',
-    rollNo: 'RLA2025019',
-    batch: 'Judicial Services Comprehensive Batch 2025-26',
+    name: user?.name || 'Advocate Aspirant',
+    rollNo: user?.rollNo || 'RLA2026-PENDING',
+    batch: user?.targetExam
+      ? `${user.targetExam} (${user.targetYear || '2025-26'})`
+      : 'Judicial Services Comprehensive Batch 2025-26',
     bloodGroup: 'B+ Positive',
     validUntil: '31 July 2026',
     campus: 'Main Judicial Campus, Chamber Complex, Delhi',
-    qrToken: 'RLA-PASS-2025-99882',
+    qrToken: `RLA-PASS-${user?.rollNo || '2026'}-SECURE`,
   };
 
   return (

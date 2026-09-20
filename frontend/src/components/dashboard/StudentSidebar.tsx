@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
@@ -15,6 +15,8 @@ import { studentSidebarItems, type NavMainItem } from '../../navigation/student-
 import { StudentIdModal } from './StudentIdModal';
 import { cn } from '../../utils/cn';
 import { toast } from 'sonner';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useNoticeStore } from '../../store/useNoticeStore';
 
 interface StudentSidebarProps {
   isCollapsed: boolean;
@@ -29,11 +31,30 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const displayName = user?.name || 'Advocate Aspirant';
+  const displayRoll = user?.rollNo || '';
+
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
     'prelims-tests': true,
     'mains-writing': false,
   });
+
+  const {
+    unreadCount: noticeUnreadCount,
+    totalCount: noticeTotalCount,
+    unreadUrgentCount: noticeUnreadUrgentCount,
+    initRealtimeListener,
+  } = useNoticeStore();
+
+  useEffect(() => {
+    const cleanup = initRealtimeListener();
+    return () => {
+      cleanup();
+    };
+  }, [initRealtimeListener]);
 
   const toggleSubMenu = (id: string) => {
     setOpenSubMenus((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -47,7 +68,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('rla_student_session');
+    logout();
     toast.info('Signed out of Classroom Portal');
     navigate('/login');
   };
@@ -144,6 +165,38 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                   const isParentOpen = openSubMenus[item.id];
                   const active = isLinkActive(item.url) || (hasSub && item.subItems?.some((sub) => isLinkActive(sub.url)));
 
+                  // Real-time Noticeboard dynamic badge and color evaluation
+                  const isNoticesItem = item.id === 'notices';
+                  const hasUnreadNotices = isNoticesItem && noticeUnreadCount > 0;
+                  const hasUrgentNotice = isNoticesItem && noticeUnreadUrgentCount > 0;
+
+                  let displayBadge = item.badge;
+                  let badgeClass = item.badgeColor;
+
+                  if (isNoticesItem) {
+                    if (noticeUnreadCount > 0) {
+                      displayBadge = `${noticeUnreadCount} New`;
+                      if (active) {
+                        badgeClass = 'bg-[#061120] text-[#e8cf8d] border border-black/30 shadow-xs font-bold';
+                      } else if (hasUrgentNotice) {
+                        badgeClass = 'bg-rose-500/15 text-rose-800 border border-rose-500/30 dark:bg-rose-500/25 dark:text-rose-300 dark:border-rose-500/40 font-bold animate-pulse';
+                      } else {
+                        badgeClass = 'bg-amber-500/15 text-amber-900 border border-amber-500/35 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/35 font-bold shadow-2xs';
+                      }
+                    } else if (noticeTotalCount > 0) {
+                      displayBadge = `${noticeTotalCount}`;
+                      if (active) {
+                        badgeClass = 'bg-[#061120]/90 text-[#e8cf8d] border border-black/25 shadow-xs font-semibold';
+                      } else {
+                        badgeClass = 'bg-slate-200/80 text-slate-700 border border-slate-300/60 dark:bg-[#143564]/50 dark:text-slate-300 dark:border-[#143564] font-medium';
+                      }
+                    } else {
+                      displayBadge = undefined;
+                    }
+                  } else if (active && displayBadge) {
+                    badgeClass = 'bg-[#061120] text-[#e8cf8d] border border-black/20 font-bold';
+                  }
+
                   // Special trigger for Digital ID modal
                   const isStudentIdItem = item.id === 'student-id';
 
@@ -175,14 +228,14 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                             )}
                           >
                             <span className="truncate">{item.title}</span>
-                            {item.badge && (
+                            {displayBadge && (
                               <span
                                 className={cn(
-                                  'text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-1.5 shrink-0',
-                                  item.badgeColor || 'bg-slate-200 dark:bg-[#143564]'
+                                  'text-[10px] px-2 py-0.5 rounded-full font-bold ml-1.5 shrink-0 transition-all duration-200',
+                                  badgeClass || 'bg-slate-200 dark:bg-[#143564]'
                                 )}
                               >
-                                {item.badge}
+                                {displayBadge}
                               </span>
                             )}
                           </div>
@@ -203,13 +256,16 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                             : 'border border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
                         )}
                       >
-                        <div className="w-10 h-10 flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 flex items-center justify-center shrink-0 relative">
                           <Icon
                             className={cn(
                               'w-4 h-4',
                               active ? 'text-[#061120]' : 'text-[#c19b48] group-hover:scale-110 transition-transform'
                             )}
                           />
+                          {hasUnreadNotices && isCollapsed && (
+                            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-[#F7F3E6] dark:ring-[#061120] animate-pulse" />
+                          )}
                         </div>
                         <div
                           className={cn(
@@ -220,14 +276,14 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           )}
                         >
                           <span className="truncate">{item.title}</span>
-                          {item.badge && (
+                          {displayBadge && (
                             <span
                               className={cn(
-                                'text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-1.5 shrink-0',
-                                item.badgeColor || 'bg-slate-200 dark:bg-[#143564] text-slate-800 dark:text-slate-200'
+                                'text-[10px] px-2 py-0.5 rounded-full font-bold ml-1.5 shrink-0 transition-all duration-200',
+                                badgeClass || 'bg-slate-200 dark:bg-[#143564] text-slate-800 dark:text-slate-200'
                               )}
                             >
-                              {item.badge}
+                              {displayBadge}
                             </span>
                           )}
                         </div>
@@ -261,14 +317,14 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           )}
                         >
                           <span className="truncate flex-1">{item.title}</span>
-                          {item.badge && (
+                          {displayBadge && (
                             <span
                               className={cn(
-                                'text-[10px] px-1.5 py-0.5 rounded-full font-bold mr-1 shrink-0',
-                                item.badgeColor || 'bg-slate-200 dark:bg-[#143564] text-slate-800 dark:text-slate-200'
+                                'text-[10px] px-2 py-0.5 rounded-full font-bold mr-1 shrink-0 transition-all duration-200',
+                                badgeClass || 'bg-slate-200 dark:bg-[#143564] text-slate-800 dark:text-slate-200'
                               )}
                             >
-                              {item.badge}
+                              {displayBadge}
                             </span>
                           )}
                           <span className="text-slate-400 shrink-0">
@@ -408,8 +464,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
               )}
             >
               <div className="flex-1 min-w-0 pr-1">
-                <h5 className="text-xs font-semibold text-slate-900 dark:text-white truncate">Adv. Rohit Verma</h5>
-                <p className="text-[10px] text-[#c19b48] font-mono truncate">Roll: RLA2025019</p>
+                <h5 className="text-xs font-semibold text-slate-900 dark:text-white truncate">{displayName}</h5>
+                <p className="text-[10px] text-[#c19b48] font-mono truncate">Roll: {displayRoll}</p>
               </div>
 
               <button

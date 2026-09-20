@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Scale,
@@ -19,6 +19,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface StudentSession {
   name: string;
@@ -31,23 +32,13 @@ interface StudentSession {
 export const DashboardPreview: React.FC = () => {
   const navigate = useNavigate();
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [student, setStudent] = useState<StudentSession>({
-    name: 'Adv. Rohit Verma',
-    rollNo: 'RLA2025019',
-    targetExam: 'Judicial Services (PCS-J)',
-  });
+  const user = useAuthStore((state) => state.user);
 
-  useEffect(() => {
-    const rawSession = localStorage.getItem('rla_student_session');
-    if (rawSession) {
-      try {
-        const parsed = JSON.parse(rawSession);
-        setStudent((prev) => ({ ...prev, ...parsed }));
-      } catch {
-        // fallback
-      }
-    }
-  }, []);
+  const student: StudentSession = {
+    name: user?.name || 'Adv. Rohit Verma',
+    rollNo: user?.rollNo || 'RLA2025019',
+    targetExam: user?.targetExam || 'Judicial Services (PCS-J)',
+  };
 
   const handleBookmarkToggle = () => {
     setIsBookmarked(!isBookmarked);

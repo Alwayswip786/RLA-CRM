@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiClient } from '../lib/apiClient';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -94,6 +95,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       localStorage.setItem(STORAGE_KEY, nextTheme);
       applyThemeToDOM(targetResolved);
       set({ theme: nextTheme, resolvedTheme: targetResolved });
+      syncThemeToCloud(nextTheme);
     });
 
     transition.ready.then(() => {
@@ -128,6 +130,25 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     }
   };
 
+  const syncThemeToCloud = (theme: ThemeMode) => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname;
+    const isPublicOrAuthRoute =
+      path === '/' ||
+      path === '/login' ||
+      path === '/signup' ||
+      path === '/email-verification' ||
+      path === '/mobile-verification' ||
+      path === '/forgot-password' ||
+      path === '/onboarding';
+
+    // On auth screens, onboarding, and landing page: managed via local storage only!
+    if (isPublicOrAuthRoute) return;
+
+    // Inside authenticated dashboard: save to MongoDB
+    apiClient.patch('/auth/theme', { theme }).catch(() => undefined);
+  };
+
   return {
     theme: initialTheme,
     resolvedTheme: initialResolved,
@@ -136,6 +157,7 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       localStorage.setItem(STORAGE_KEY, theme);
       applyThemeToDOM(resolved);
       set({ theme, resolvedTheme: resolved });
+      syncThemeToCloud(theme);
     },
     toggleTheme: () => {
       const current = get().resolvedTheme;

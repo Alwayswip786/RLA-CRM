@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Lock, User, Phone, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Lock, Phone, ArrowRight, User, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { FcGoogle } from 'react-icons/fc';
 import { AuthLayout } from '../../layouts/AuthLayout';
+import { useAuthStore } from '../../store/useAuthStore';
+import { apiClient } from '../../lib/apiClient';
+import { loginWithGoogle } from '../../lib/auth.utils';
 
 // Schema for Password Login
 const passwordLoginSchema = z.object({
@@ -28,6 +32,10 @@ type OtpLoginFormData = z.infer<typeof otpLoginSchema>;
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const login = useAuthStore((state) => state.login);
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+
   const [activeTab, setActiveTab] = useState<'password' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -37,7 +45,6 @@ export const Login: React.FC = () => {
   const {
     register: registerPassword,
     handleSubmit: handlePasswordSubmit,
-    setValue: setPasswordValue,
     formState: { errors: passwordErrors, isSubmitting: isPasswordSubmitting },
   } = useForm<PasswordLoginFormData>({
     resolver: zodResolver(passwordLoginSchema),
@@ -63,27 +70,43 @@ export const Login: React.FC = () => {
   });
 
   const onPasswordLogin = async (data: PasswordLoginFormData) => {
-    // Simulated API authentication call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    // Save mock student auth in localStorage
-    localStorage.setItem(
-      'rla_student_session',
-      JSON.stringify({
+    try {
+      const response = await apiClient.post('/auth/login', {
         identifier: data.identifier,
-        name: 'Adv. Rohit Verma',
-        rollNo: 'RLA2025019',
-        targetExam: 'Judicial Services (PCS-J)',
-        isLoggedIn: true,
-        loginTime: new Date().toISOString(),
-      })
-    );
+        password: data.password,
+      });
 
-    toast.success('Welcome back, Counsel!', {
-      description: 'Successfully signed in to Rajinder Law Academy Classroom Portal.',
-    });
+      const { user, accessToken, redirectTo } = response.data;
 
-    navigate('/dashboard');
+      login(
+        {
+          _id: user._id,
+          name: user.name,
+          salutation: user.salutation,
+          rollNo: user.rollNo,
+          email: user.email,
+          phone: user.phone,
+          targetExam: user.targetExam,
+          targetState: user.targetState,
+          targetYear: user.targetYear,
+          academicStatus: user.academicStatus,
+          themePreference: user.themePreference || 'light',
+          isLoggedIn: true,
+          needsOnboarding: user.needsOnboarding ?? false,
+        },
+        accessToken
+      );
+
+      toast.success('Welcome back, Counsel!', {
+        description: `Successfully signed in as ${user.name} (${user.rollNo}).`,
+      });
+
+      const targetRoute = user.needsOnboarding ? '/onboarding' : (redirectTo || from || '/dashboard');
+      navigate(targetRoute, { replace: true });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Login failed. Please check your credentials and try again.';
+      toast.error('Authentication Failed', { description: msg });
+    }
   };
 
   const handleSendOtp = async () => {
@@ -119,29 +142,24 @@ export const Login: React.FC = () => {
 
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    localStorage.setItem(
-      'rla_student_session',
-      JSON.stringify({
-        phone: data.phone,
-        name: 'Candidate ' + data.phone.slice(-4),
-        rollNo: 'RLA-M' + data.phone.slice(-4),
-        targetExam: 'Judicial Services (PCS-J)',
-        isLoggedIn: true,
-        loginTime: new Date().toISOString(),
-      })
-    );
+    login({
+      phone: data.phone,
+      name: 'Candidate ' + data.phone.slice(-4),
+      rollNo: 'RLA-M' + data.phone.slice(-4),
+      targetExam: 'Judicial Services (PCS-J)',
+      isLoggedIn: true,
+      loginTime: new Date().toISOString(),
+    });
 
     toast.success('Mobile Verified Successfully!', {
       description: 'Logged in to your Law Classroom Portal.',
     });
 
-    navigate('/dashboard');
+    navigate(from, { replace: true });
   };
 
-  const fillDemoCredentials = () => {
-    setPasswordValue('identifier', 'RLA2025019');
-    setPasswordValue('password', 'Judiciary@2025');
-    toast.success('Demo Student Credentials Populated');
+  const handleGoogleAuth = () => {
+    loginWithGoogle();
   };
 
   return (
@@ -156,7 +174,7 @@ export const Login: React.FC = () => {
           onClick={() => setActiveTab('password')}
           className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'password'
-              ? 'bg-[#c19b48] text-[#061120] font-bold'
+              ? 'bg-[#c19b48] text-[#061120] font-bold shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -169,7 +187,7 @@ export const Login: React.FC = () => {
           onClick={() => setActiveTab('otp')}
           className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'otp'
-              ? 'bg-[#c19b48] text-[#061120] font-bold'
+              ? 'bg-[#c19b48] text-[#061120] font-bold shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -184,7 +202,7 @@ export const Login: React.FC = () => {
           {/* Identifier Input */}
           <div>
             <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Roll Number / Email / WhatsApp Mobile <span className="text-[#c19b48]">*</span>
+              Roll Number / Email / WhatsApp Mobile <span className="text-red-500 font-bold">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
@@ -210,7 +228,7 @@ export const Login: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                Password <span className="text-[#c19b48]">*</span>
+                Password <span className="text-red-500 font-bold">*</span>
               </label>
               <Link
                 to="/forgot-password"
@@ -248,7 +266,7 @@ export const Login: React.FC = () => {
           </div>
 
           {/* Remember Me */}
-          <div className="flex items-center justify-between pt-0.5">
+          <div className="flex items-center pt-0.5">
             <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
               <input
                 type="checkbox"
@@ -257,15 +275,6 @@ export const Login: React.FC = () => {
               />
               <span>Remember this device</span>
             </label>
-
-            <button
-              type="button"
-              onClick={fillDemoCredentials}
-              className="text-xs text-[#a47d31] dark:text-[#e8cf8d] hover:text-[#835f21] dark:hover:text-white flex items-center gap-1 transition-colors cursor-pointer font-semibold"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#c19b48]" />
-              <span>Demo Credentials</span>
-            </button>
           </div>
 
           {/* Submit Button */}
@@ -291,7 +300,7 @@ export const Login: React.FC = () => {
         <form onSubmit={handleOtpSubmit(onOtpLogin)} className="space-y-3.5 sm:space-y-4">
           <div>
             <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Registered WhatsApp Mobile Number <span className="text-[#c19b48]">*</span>
+              Registered WhatsApp Mobile Number <span className="text-red-500 font-bold">*</span>
             </label>
             <div className="flex">
               <span className="inline-flex items-center px-2.5 rounded-l-xl border border-r-0 border-slate-200 dark:border-[#143564] bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-normal">
@@ -328,7 +337,7 @@ export const Login: React.FC = () => {
             <div className="space-y-3 sm:space-y-3.5 pt-0.5">
               <div>
                 <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                  Enter 6-Digit Security Code <span className="text-[#c19b48]">*</span>
+                  Enter 6-Digit Security Code <span className="text-red-500 font-bold">*</span>
                 </label>
                 <input
                   type="text"
@@ -369,6 +378,28 @@ export const Login: React.FC = () => {
           )}
         </form>
       )}
+
+      {/* Divider */}
+      <div className="relative my-3 sm:my-3.5">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-slate-200 dark:border-[#143564]" />
+        </div>
+        <div className="relative flex justify-center text-[11px]">
+          <span className="bg-white dark:bg-[#0a1c36] px-2.5 text-slate-400 dark:text-slate-500 font-medium">
+            or continue with
+          </span>
+        </div>
+      </div>
+
+      {/* Continue with Google Button */}
+      <button
+        type="button"
+        onClick={handleGoogleAuth}
+        className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-slate-300 dark:border-[#143564] dark:hover:border-[#1e457e] bg-white dark:bg-[#061120] hover:bg-slate-50/80 dark:hover:bg-[#0c203b] text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm transition-all shadow-xs flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
+      >
+        <FcGoogle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+        <span>Continue with Google</span>
+      </button>
 
       {/* Switch to Signup */}
       <div className="mt-3.5 sm:mt-4 pt-3 sm:pt-3.5 border-t border-slate-200 dark:border-[#143564]/60 text-center text-xs text-slate-600 dark:text-slate-400">

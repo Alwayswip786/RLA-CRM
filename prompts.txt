@@ -1,0 +1,7 @@
+what else from frontend do you recommend doing in whole authentication pages and the / route??
+suggest me the best code architecture and ui which looks minimilistic and professional
+do not change anything in the code, give me suggestions first
+
+Deeply analyze the existing GOmed backend architecture, folder structure, coding patterns, configuration, middleware, error handling, database setup, and server initialization, and use it as the reference architecture for this new backend. Set up only the clean foundational backend structure needed to start the server and implement an initial /health health-check route. Keep the architecture production-ready, modular, scalable, and consistent with GOmed conventions, but avoid unnecessary modules or overengineering at this stage. Clearly explain what you created and why, and ensure the server starts cleanly without affecting the existing frontend.
+do not change anything in the code right now
+first give me an implementation plan of how it will be done

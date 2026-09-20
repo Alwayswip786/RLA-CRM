@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuthLayout } from '../../layouts/AuthLayout';
+import { apiClient } from '../../lib/apiClient';
 
 // Step 1: Request OTP
 const requestOtpSchema = z.object({
@@ -39,6 +40,7 @@ export const ForgotPassword: React.FC = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
+  const [resetToken, setResetToken] = useState('');
 
   // Form 1
   const {
@@ -59,30 +61,60 @@ export const ForgotPassword: React.FC = () => {
   });
 
   const onRequestOtp = async (data: RequestOtpFormData) => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setTargetIdentifier(data.identifier);
-    setCurrentStep(2);
+    try {
+      await apiClient.post('/auth/forgot-password/request', {
+        email: data.identifier,
+      });
 
-    toast.info('Verification Code Dispatched', {
-      description: `6-digit reset OTP sent to ${data.identifier}. (Use test code: 123456)`,
-    });
+      setTargetIdentifier(data.identifier);
+      setCurrentStep(2);
 
-    let count = 30;
-    const interval = setInterval(() => {
-      count -= 1;
-      setResendTimer(count);
-      if (count <= 0) clearInterval(interval);
-    }, 1000);
+      toast.info('Verification Code Dispatched', {
+        description: `6-digit reset code sent to ${data.identifier}.`,
+      });
+
+      setResendTimer(30);
+      const interval = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to dispatch reset code.';
+      toast.error('Request Failed', { description: msg });
+    }
   };
 
-  const onResetPassword = async (_data: ResetPasswordFormData) => {
-    await new Promise((resolve) => setTimeout(resolve, 900));
+  const onResetPassword = async (data: ResetPasswordFormData) => {
+    try {
+      let tokenToUse = resetToken;
+      if (!tokenToUse) {
+        const verifyRes = await apiClient.post('/auth/forgot-password/verify', {
+          email: targetIdentifier,
+          otp: data.otp,
+        });
+        tokenToUse = verifyRes.data.resetToken;
+        setResetToken(tokenToUse);
+      }
 
-    toast.success('Password Reset Successful!', {
-      description: 'Your student account password has been updated. You can now sign in.',
-    });
+      await apiClient.post('/auth/forgot-password/reset', {
+        resetToken: tokenToUse,
+        newPassword: data.newPassword,
+      });
 
-    navigate('/login');
+      toast.success('Password Reset Successful!', {
+        description: 'Your password has been updated. Please sign in with your new password.',
+      });
+
+      navigate('/login');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Password reset failed. Please check your OTP and try again.';
+      toast.error('Reset Failed', { description: msg });
+    }
   };
 
   return (
@@ -98,7 +130,7 @@ export const ForgotPassword: React.FC = () => {
         <form onSubmit={handleRequestSubmit(onRequestOtp)} className="space-y-3.5 sm:space-y-4">
           <div>
             <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Registered Email or Mobile Number <span className="text-[#c19b48]">*</span>
+              Registered Email or Mobile Number <span className="text-red-500 font-bold">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
@@ -141,7 +173,7 @@ export const ForgotPassword: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                6-Digit Security Code <span className="text-[#c19b48]">*</span>
+                6-Digit Security Code <span className="text-red-500 font-bold">*</span>
               </label>
               <button
                 type="button"
@@ -167,69 +199,68 @@ export const ForgotPassword: React.FC = () => {
             )}
           </div>
 
-          {/* 2-Column Grid for Passwords */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                New Password <span className="text-[#c19b48]">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                  <Lock className="w-4 h-4" strokeWidth={1.75} />
-                </div>
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  {...registerReset('newPassword')}
-                  placeholder="Min. 8 chars"
-                  className={`w-full pl-9 pr-9 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120]/80 border text-xs sm:text-sm font-normal text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-all ${
-                    resetErrors.newPassword
-                      ? 'border-red-500 focus:border-red-500 bg-red-50 dark:bg-red-950/10'
-                      : 'border-slate-200 dark:border-[#143564] focus:border-[#c19b48]'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                >
-                  {showNewPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
-                </button>
+          {/* New Password (Full Width) */}
+          <div>
+            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              New Password <span className="text-red-500 font-bold">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                <Lock className="w-4 h-4" strokeWidth={1.75} />
               </div>
-              {resetErrors.newPassword && (
-                <p className="text-red-500 dark:text-red-400 text-[11px] mt-1 leading-tight">{resetErrors.newPassword.message}</p>
-              )}
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                {...registerReset('newPassword')}
+                placeholder="Min. 8 chars"
+                className={`w-full pl-9 pr-9 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120]/80 border text-xs sm:text-sm font-normal text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-all ${
+                  resetErrors.newPassword
+                    ? 'border-red-500 focus:border-red-500 bg-red-50 dark:bg-red-950/10'
+                    : 'border-slate-200 dark:border-[#143564] focus:border-[#c19b48]'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                {showNewPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
+              </button>
             </div>
+            {resetErrors.newPassword && (
+              <p className="text-red-500 dark:text-red-400 text-[11px] mt-1 leading-tight">{resetErrors.newPassword.message}</p>
+            )}
+          </div>
 
-            <div>
-              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Confirm Password <span className="text-[#c19b48]">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                  <Lock className="w-4 h-4" strokeWidth={1.75} />
-                </div>
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  {...registerReset('confirmPassword')}
-                  placeholder="Re-enter password"
-                  className={`w-full pl-9 pr-9 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120]/80 border text-xs sm:text-sm font-normal text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-all ${
-                    resetErrors.confirmPassword
-                      ? 'border-red-500 focus:border-red-500 bg-red-50 dark:bg-red-950/10'
-                      : 'border-slate-200 dark:border-[#143564] focus:border-[#c19b48]'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
-                </button>
+          {/* Confirm Password (Full Width) */}
+          <div>
+            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Confirm Password <span className="text-red-500 font-bold">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                <Lock className="w-4 h-4" strokeWidth={1.75} />
               </div>
-              {resetErrors.confirmPassword && (
-                <p className="text-red-500 dark:text-red-400 text-[11px] mt-1 leading-tight">{resetErrors.confirmPassword.message}</p>
-              )}
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                {...registerReset('confirmPassword')}
+                placeholder="Re-enter password"
+                className={`w-full pl-9 pr-9 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120]/80 border text-xs sm:text-sm font-normal text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-all ${
+                  resetErrors.confirmPassword
+                    ? 'border-red-500 focus:border-red-500 bg-red-50 dark:bg-red-950/10'
+                    : 'border-slate-200 dark:border-[#143564] focus:border-[#c19b48]'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" strokeWidth={1.75} /> : <Eye className="w-4 h-4" strokeWidth={1.75} />}
+              </button>
             </div>
+            {resetErrors.confirmPassword && (
+              <p className="text-red-500 dark:text-red-400 text-[11px] mt-1 leading-tight">{resetErrors.confirmPassword.message}</p>
+            )}
           </div>
 
           {/* Resend Helper */}

@@ -202,8 +202,6 @@ export const studentSidebarItems: NavGroup[] = [
         title: 'Notice Board',
         url: '/dashboard/notices',
         icon: BellRing,
-        badge: '3 New',
-        badgeColor: 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30',
       },
     ],
   },

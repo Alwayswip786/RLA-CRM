@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminLayout } from './components/layout/AdminLayout';
+import { AdminProtectedRoute } from './components/auth/AdminProtectedRoute';
+import { useAdminAuthStore } from './store/useAdminAuthStore';
 
 // Leads Pages
 import { LeadsPipelinePage } from './pages/leads/LeadsPipelinePage';
@@ -44,6 +47,12 @@ import { NoticesPage } from './pages/campus/NoticesPage';
 import { StaffPage } from './pages/campus/StaffPage';
 
 function App() {
+  const initSession = useAdminAuthStore((state) => state.initSession);
+
+  useEffect(() => {
+    initSession();
+  }, [initSession]);
+
   return (
     <BrowserRouter>
       {/* Dark Themed Toast Notifications via react-hot-toast */}
@@ -79,8 +88,14 @@ function App() {
         {/* Authentication Route (Standalone, without sidebar/navbar) */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Chamber Administration Layout Shell */}
-        <Route element={<AdminLayout />}>
+        {/* Chamber Administration Layout Shell (Protected) */}
+        <Route
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout />
+            </AdminProtectedRoute>
+          }
+        >
           {/* Executive Operations */}
           <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard" element={<Navigate to="/" replace />} />

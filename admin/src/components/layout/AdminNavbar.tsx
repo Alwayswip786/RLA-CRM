@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { AdminSearchDialog } from './AdminSearchDialog';
 import { toast } from 'react-hot-toast';
+import { useAdminAuthStore } from '../../store/useAdminAuthStore';
 
 interface AdminNavbarProps {
   isCollapsed: boolean;
@@ -70,27 +71,21 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
     return 'Chamber Administration';
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('rla_admin_session');
+  const storedAdmin = useAdminAuthStore((state) => state.admin);
+  const logout = useAdminAuthStore((state) => state.logout);
+
+  const adminUser = storedAdmin || {
+    name: 'Adv. Rajinder Sir',
+    email: 'director@rajinderlawacademy.com',
+    role: 'admin',
+    title: 'Director & Academic Dean',
+  };
+
+  const handleLogout = async () => {
+    await logout();
     toast('Signed out of Chamber Administration', { icon: '👋' });
     navigate('/login');
   };
-
-  // Get active admin user from storage
-  const [adminUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem('rla_admin_session');
-      if (raw) return JSON.parse(raw);
-    } catch {
-      // fallback
-    }
-    return {
-      name: 'Adv. Rajinder Sir',
-      email: 'rajinder@rajinderlawacademy.com',
-      role: 'director',
-      title: 'Director & Academic Dean',
-    };
-  });
 
   return (
     <>

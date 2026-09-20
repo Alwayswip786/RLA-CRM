@@ -10,6 +10,8 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import apiClient from '../lib/apiClient';
+import { useAdminAuthStore } from '../store/useAdminAuthStore';
 
 interface AdminProfile {
   name: string;
@@ -64,7 +66,9 @@ export const LoginPage: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const login = useAdminAuthStore((state) => state.login);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!email.trim() || !password.trim()) {
@@ -74,32 +78,57 @@ export const LoginPage: React.FC = () => {
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      // Auto-detect role and privileges directly from email
-      const profile = resolveRoleFromEmail(email);
+    try {
+      const response = await apiClient.post('/auth/login', {
+        identifier: email.trim(),
+        password,
+      });
 
-      const sessionData = {
-        name: profile.name,
-        email: email.trim(),
-        role: profile.role,
-        title: profile.title,
-        token: `rla_jwt_admin_${Date.now()}`,
-        loginAt: new Date().toISOString(),
-      };
+      const { user, accessToken } = response.data;
 
-      localStorage.setItem('rla_admin_session', JSON.stringify(sessionData));
-      setIsLoading(false);
+      // Verify institutional role clearance
+      if (user.role !== 'admin' && user.role !== 'faculty') {
+        toast.error('Access Denied: Candidate/Student accounts cannot access Executive Chambers.');
+        setIsLoading(false);
+        return;
+      }
+
+      const profile = resolveRoleFromEmail(user.email || email);
+
+      login(
+        {
+          _id: user._id,
+          name: user.name || profile.name,
+          salutation: user.salutation,
+          email: user.email || email.trim(),
+          rollNo: user.rollNo,
+          role: user.role,
+          title: profile.title,
+        },
+        accessToken
+      );
 
       toast.success(
         <div>
-          <div className="font-semibold text-[#F7F3E6]">Welcome to Executive Chambers, {profile.name}</div>
-          <div className="text-xs text-[#A8A294] mt-0.5">Authenticated with {profile.title} privileges.</div>
+          <div className="font-semibold text-[#F7F3E6]">
+            Welcome to Executive Chambers, {user.name || profile.name}
+          </div>
+          <div className="text-xs text-[#A8A294] mt-0.5">
+            Authenticated with {profile.title} privileges.
+          </div>
         </div>,
         { duration: 3500 }
       );
 
       navigate('/');
-    }, 500);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        'Authentication failed. Please verify administrative credentials.';
+      toast.error(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

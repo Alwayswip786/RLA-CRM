@@ -61,7 +61,7 @@ export const MainsSubmitPage: React.FC = () => {
         <form onSubmit={handleUploadSubmit} className="lg:col-span-2 p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-5 shadow-xs">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Select Mains Test / DAW Question <span className="text-[#c19b48]">*</span>
+              Select Mains Test / DAW Question <span className="text-red-500 font-bold">*</span>
             </label>
             <select
               value={selectedQuestion}
@@ -78,7 +78,7 @@ export const MainsSubmitPage: React.FC = () => {
           {/* Drag & Drop Area */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Scanned Answer Copy (PDF) <span className="text-[#c19b48]">*</span>
+              Scanned Answer Copy (PDF) <span className="text-red-500 font-bold">*</span>
             </label>
             <label className="border-2 border-dashed border-slate-300 dark:border-[#143564] hover:border-[#c19b48] rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors group bg-slate-50/50 dark:bg-[#061120]/40">
               <UploadCloud className="w-10 h-10 text-[#c19b48] group-hover:scale-110 transition-transform mb-3" />
