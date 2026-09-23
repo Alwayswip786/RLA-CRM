@@ -10,6 +10,11 @@ export type NoticeCategory =
 
 export type NoticePriority = 'normal' | 'urgent';
 
+export interface INoticeReadReceipt {
+  student: mongoose.Types.ObjectId;
+  readAt: Date;
+}
+
 export interface INotice extends Document {
   _id: mongoose.Types.ObjectId;
   circularNo: string;
@@ -24,6 +29,8 @@ export interface INotice extends Document {
   authorName: string;
   isPublished: boolean;
   publishedAt: Date;
+  validUntil?: Date;
+  readBy?: INoticeReadReceipt[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -98,6 +105,21 @@ const NoticeSchema = new Schema<INotice>(
       default: Date.now,
       index: true,
     },
+    validUntil: {
+      type: Date,
+    },
+    readBy: [
+      {
+        student: {
+          type: Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        readAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

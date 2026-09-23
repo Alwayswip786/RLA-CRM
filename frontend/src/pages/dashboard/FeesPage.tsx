@@ -4,7 +4,7 @@ import {
   Download,
   CreditCard,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface Installment {
   id: string;
@@ -37,7 +37,7 @@ const feeLedger: Installment[] = [
   },
   {
     id: 'inst-3',
-    installmentNo: 'Installment 3 (Mains & Interview Wing)',
+    installmentNo: 'Installment 3 (Mains & Advanced Test Wing)',
     amount: '₹30,000',
     dueDate: '15 Jan 2026',
     status: 'Upcoming',

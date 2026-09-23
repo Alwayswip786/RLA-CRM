@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import type { PyqPaper } from '../../types/pyq.types';
 import { fetchPdfBlob, getDirectStreamUrl, downloadPyqPdf } from '../../services/pyq.service';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
+import { DocumentViewerSkeleton } from '../ui/skeleton';
 
 interface PyqViewerModalProps {
   paper: PyqPaper | null;
@@ -223,14 +224,7 @@ export const PyqViewerModal: React.FC<PyqViewerModalProps> = ({
 
         {/* Viewport Area */}
         <div className="relative flex-1 bg-[#061120] overflow-auto flex items-center justify-center">
-          {loading && (
-            <div className="flex flex-col items-center justify-center gap-3 p-8">
-              <Loader2 className="w-8 h-8 text-[#c19b48] animate-spin" />
-              <p className="text-xs text-slate-400 font-medium animate-pulse">
-                Streaming model answer paper from faculty chamber...
-              </p>
-            </div>
-          )}
+          {loading && <DocumentViewerSkeleton />}
 
           {error && (
             <div className="p-8 text-center space-y-3">

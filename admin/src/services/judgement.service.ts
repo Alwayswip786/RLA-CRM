@@ -4,6 +4,7 @@ import type {
   JudgementAdminResponse,
   JudgementDigest,
   UpdateJudgementPayload,
+  JudgementStatus,
 } from '../types/judgement.types';
 
 /**
@@ -31,7 +32,7 @@ export const fetchAllJudgementsAdmin = async (
 };
 
 /**
- * Upload new Landmark Judgement with PDF file, cover, and rich metadata
+ * Upload new Landmark Judgement with optional PDF file, cover, and rich metadata
  */
 export const uploadJudgement = async (
   formData: FormData,
@@ -66,6 +67,41 @@ export const updateJudgement = async (
     `/judgements/${id}`,
     payload
   );
+  return res.data;
+};
+
+/**
+ * Schedule a judgement as the Landmark Judgment of the Day
+ */
+export const scheduleDailyJudgement = async (
+  id: string,
+  payload: {
+    dailyDateIST: string;
+    isDailyFeatured?: boolean;
+    priority?: number;
+    status?: JudgementStatus;
+  }
+): Promise<{ success: boolean; judgement: JudgementDigest; message: string }> => {
+  const res = await apiClient.patch<{
+    success: boolean;
+    judgement: JudgementDigest;
+    message: string;
+  }>(`/judgements/${id}/schedule`, payload);
+  return res.data;
+};
+
+/**
+ * Update judgement status (draft, scheduled, published, archived)
+ */
+export const updateJudgementStatus = async (
+  id: string,
+  status: JudgementStatus
+): Promise<{ success: boolean; judgement: JudgementDigest; message: string }> => {
+  const res = await apiClient.patch<{
+    success: boolean;
+    judgement: JudgementDigest;
+    message: string;
+  }>(`/judgements/${id}/status`, { status });
   return res.data;
 };
 
@@ -133,7 +169,7 @@ export const deleteJudgement = async (
 /**
  * Trigger file download
  */
-export const downloadJudgementPdf = async (id: string, filename: string): Promise<void> => {
+export const downloadJudgementPdf = async (id: string, filename?: string): Promise<void> => {
   const res = await apiClient.get(`/judgements/${id}/download`, {
     responseType: 'blob',
   });

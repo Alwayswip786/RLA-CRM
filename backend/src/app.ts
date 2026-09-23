@@ -24,7 +24,23 @@ import doubtRoutes from './routes/doubt.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import pyqRoutes from './routes/pyq.routes.js';
 import judgementRoutes from './routes/judgement.routes.js';
+import bareActRoutes from './routes/bareAct.routes.js';
+import bookmarkRoutes from './routes/bookmark.routes.js';
+import mainsRoutes from './routes/mains.routes.js';
+import testAnalyticsRoutes from './routes/testAnalytics.routes.js';
+import testExamRoutes from './routes/testExam.routes.js';
+import liveMockTestRoutes from './routes/liveMockTest.routes.js';
+import adminLiveTestRoutes from './routes/adminLiveTest.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 import mediaRoutes from './routes/media.routes.js';
+import dailyDigestRoutes from './routes/dailyDigest.routes.js';
+import timetableRoutes from './routes/timetable.routes.js';
+import courseRoutes from './routes/course.routes.js';
+import liveClassRoutes from './routes/liveClass.routes.js';
+import adminStaffRoutes from './routes/adminStaff.routes.js';
+import adminStudentRoutes from './routes/adminStudent.routes.js';
+import adminDashboardRoutes from './routes/adminDashboard.routes.js';
+import { publicSettingRoutes, adminSettingRoutes } from './routes/systemSetting.routes.js';
 import passport from './config/passport.js';
 
 const app: Express = express();
@@ -118,10 +134,57 @@ app.use('/api/pyqs', pyqRoutes);
 // 17. Landmark Judgement Digest Repository Routes
 app.use('/api/judgements', judgementRoutes);
 
-// 18. Media Asset Management & Cloudinary CDN Routes
+// 18. Bare Act Decoding Notes Knowledge Vault Routes
+app.use('/api/bare-acts', bareActRoutes);
+
+// 19. Starred Questions & Legal Vault Routes
+app.use('/api/bookmarks', bookmarkRoutes);
+
+// 20. Mains Answer Writing & Evaluation Desk Routes
+app.use('/api/mains', mainsRoutes);
+
+// 21. Student Mock Test Analytics & Scorecard Routes
+app.use('/api/tests/analytics', testAnalyticsRoutes);
+
+// 22. Live Test & Practice Exam Engine Routes
+app.use('/api/tests/engine', testExamRoutes);
+
+// 23. Competitive Live Mock Test & Leaderboard Engine Routes
+app.use('/api/tests/live', liveMockTestRoutes);
+
+// 24. Admin Live Mock Test Management Routes
+app.use('/api/tests/admin/live-tests', adminLiveTestRoutes);
+
+// 25. Student Dashboard KPI Ribbon Metrics Routes
+app.use('/api/dashboard', dashboardRoutes);
+
+// 26. Media Asset Management & Cloudinary CDN Routes
 app.use('/api/media', mediaRoutes);
 
-// 19. 404 Catch-all Handler
+// 27. Daily Legal Digest & Case Law Brief Routes
+app.use('/api/daily-digest', dailyDigestRoutes);
+
+// 28. Batch Timetable & Shift Schedule Routes
+app.use('/api/timetable', timetableRoutes);
+
+// 29. Classroom & Academic Courses LMS Routes
+app.use('/api/courses', courseRoutes);
+
+// 30. Dynamic Live Classroom & Zoom Video SDK Routes
+app.use('/api/live-classes', liveClassRoutes);
+
+// 31. Chamber Governance, Staff & Dynamic RBAC Routes
+app.use('/api/admin/dashboard', adminDashboardRoutes);
+app.use('/api/admin', adminStaffRoutes);
+
+// 32. Student Directory, Course Metrics & Video Telemetry Routes
+app.use('/api/admin/students', adminStudentRoutes);
+
+// 33. Platform System Settings & Admissions Banner CMS
+app.use('/api/settings', publicSettingRoutes);
+app.use('/api/admin/settings', adminSettingRoutes);
+
+// 20. 404 Catch-all Handler
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {
     next(new ApiError(404, `Can't find ${req.originalUrl} on this server!`));
 });

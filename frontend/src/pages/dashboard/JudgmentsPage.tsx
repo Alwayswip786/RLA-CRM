@@ -20,6 +20,7 @@ import {
 import { JudgementFilterBar } from '../../components/judgement/JudgementFilterBar';
 import { JudgementCard } from '../../components/judgement/JudgementCard';
 import { JudgementViewerModal } from '../../components/judgement/JudgementViewerModal';
+import { JudgementCardSkeleton } from '../../components/ui/skeleton';
 
 export const JudgmentsPage: React.FC = () => {
   const [judgements, setJudgements] = useState<JudgementDigest[]>([]);
@@ -220,24 +221,7 @@ export const JudgmentsPage: React.FC = () => {
       />
 
       {/* Loading Skeleton State */}
-      {loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 animate-pulse"
-            >
-              <div className="flex justify-between">
-                <div className="h-5 w-24 bg-slate-200 dark:bg-slate-700 rounded-full" />
-                <div className="h-5 w-28 bg-slate-200 dark:bg-slate-700 rounded" />
-              </div>
-              <div className="h-6 w-3/4 bg-slate-200 dark:bg-slate-700 rounded" />
-              <div className="h-16 w-full bg-slate-100 dark:bg-slate-800 rounded-xl" />
-              <div className="h-8 w-full bg-slate-200 dark:bg-slate-700 rounded-lg" />
-            </div>
-          ))}
-        </div>
-      )}
+      {loading && <JudgementCardSkeleton count={4} />}
 
       {/* Error Alert */}
       {!loading && error && (

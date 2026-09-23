@@ -45,6 +45,11 @@ export interface IDoubtQuery extends Document {
   resolvedAt?: Date;
   escalatedToLiveChat: boolean;
   liveChatConversationId?: Types.ObjectId;
+  courseId?: string;
+  moduleId?: string;
+  lessonId?: string;
+  lessonTitle?: string;
+  videoTimestamp?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -191,6 +196,28 @@ const DoubtQuerySchema = new Schema<IDoubtQuery>(
     liveChatConversationId: {
       type: Schema.Types.ObjectId,
       ref: 'ChatConversation',
+    },
+    courseId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    moduleId: {
+      type: String,
+      trim: true,
+    },
+    lessonId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    lessonTitle: {
+      type: String,
+      trim: true,
+    },
+    videoTimestamp: {
+      type: String,
+      trim: true,
     },
   },
   {

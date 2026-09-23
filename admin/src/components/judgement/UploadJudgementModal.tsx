@@ -5,9 +5,20 @@ import {
   Loader2,
   CheckCircle2,
   Scale,
+  Plus,
+  Trash2,
+  Calendar,
+  Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import { uploadJudgement } from '../../services/judgement.service';
-import type { CourtCategory, JudgementImportance } from '../../types/judgement.types';
+import type {
+  CourtCategory,
+  JudgementImportance,
+  JudgementStatus,
+  IKeyHolding,
+  ILegalProvisionRef,
+} from '../../types/judgement.types';
 import { toast } from 'react-hot-toast';
 
 interface UploadJudgementModalProps {
@@ -34,6 +45,22 @@ const IMPORTANCES: JudgementImportance[] = [
   'Standard',
 ];
 
+const STATUS_OPTIONS: { label: string; value: JudgementStatus }[] = [
+  { label: 'Published (Live)', value: 'published' },
+  { label: 'Scheduled (Future Daily)', value: 'scheduled' },
+  { label: 'Draft (In Review)', value: 'draft' },
+  { label: 'Archived', value: 'archived' },
+];
+
+const getTodayDateIST = (): string => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+};
+
 export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
   isOpen,
   onClose,
@@ -44,20 +71,40 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
   const [citation, setCitation] = useState('');
   const [court, setCourt] = useState<CourtCategory>('Supreme Court of India');
   const [bench, setBench] = useState('Division Bench (2 Judges)');
+  const [benchStrength, setBenchStrength] = useState('3-Judge Bench');
   const [judges, setJudges] = useState('');
-  const [dateOfJudgement, setDateOfJudgement] = useState(new Date().toISOString().split('T')[0]);
+  const [dateOfJudgement, setDateOfJudgement] = useState(getTodayDateIST());
   const [subject, setSubject] = useState('Constitutional Law');
-  const [legalProvisions, setLegalProvisions] = useState('');
+  const [category, setCategory] = useState('Constitutional Criminal Jurisprudence');
+  const [sourceReference, setSourceReference] = useState('');
   const [summary, setSummary] = useState('');
-  // 3-Point Ratio Decidendi
-  const [ratio1, setRatio1] = useState('');
-  const [ratio2, setRatio2] = useState('');
-  const [ratio3, setRatio3] = useState('');
+
+  // Daily Judgment of the Day Scheduling
+  const [dailyDateIST, setDailyDateIST] = useState(getTodayDateIST());
+  const [isDailyFeatured, setIsDailyFeatured] = useState(false);
+  const [priority, setPriority] = useState(1);
+  const [status, setStatus] = useState<JudgementStatus>('published');
+
+  // Key Legal Principles / Holdings (Structured)
+  const [keyHoldings, setKeyHoldings] = useState<IKeyHolding[]>([
+    { title: 'Involuntary Administration:', text: '' },
+    { title: 'Protection of Privacy:', text: '' },
+    { title: 'Substantive Due Process:', text: '' },
+  ]);
+
+  // Relevant Articles / Sections / Acts (Structured)
+  const [provisions, setProvisions] = useState<ILegalProvisionRef[]>([
+    { label: 'Article 20(3)', actOrCode: 'Constitution of India, 1950', badgeColor: 'amber' },
+    { label: 'Article 21', actOrCode: 'Right to Privacy & Due Process', badgeColor: 'blue' },
+  ]);
+
+  // Full In-Depth Analysis (Markdown)
+  const [fullAnalysis, setFullAnalysis] = useState('');
+
   const [mainsUtility, setMainsUtility] = useState('');
   const [overruledPrecedents, setOverruledPrecedents] = useState('');
   const [tags, setTags] = useState('');
   const [importance, setImportance] = useState<JudgementImportance>('Landmark');
-  const [isPublished, setIsPublished] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
 
   // Upload state
@@ -92,13 +139,50 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
     }
   };
 
+  // Holdings Handlers
+  const handleAddHolding = () => {
+    setKeyHoldings((prev) => [...prev, { title: '', text: '' }]);
+  };
+
+  const handleRemoveHolding = (index: number) => {
+    setKeyHoldings((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleHoldingChange = (index: number, field: 'title' | 'text', val: string) => {
+    setKeyHoldings((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: val };
+      return copy;
+    });
+  };
+
+  // Provisions Handlers
+  const handleAddProvision = () => {
+    setProvisions((prev) => [
+      ...prev,
+      { label: '', actOrCode: '', badgeColor: 'amber' },
+    ]);
+  };
+
+  const handleRemoveProvision = (index: number) => {
+    setProvisions((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleProvisionChange = (
+    index: number,
+    field: keyof ILegalProvisionRef,
+    val: string
+  ) => {
+    setProvisions((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: val };
+      return copy;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!file) {
-      toast.error('Please select or drop a Judgement PDF document.');
-      return;
-    }
     if (!title.trim()) {
       toast.error('Case name / title is required.');
       return;
@@ -117,25 +201,53 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
       setProgress(0);
 
       const formData = new FormData();
-      formData.append('pdf', file);
+      // Optional PDF
+      if (file) {
+        formData.append('pdf', file);
+      }
+
       formData.append('title', title.trim());
       formData.append('citation', citation.trim());
       formData.append('court', court);
       formData.append('bench', bench.trim());
+      formData.append('benchStrength', benchStrength.trim() || bench.trim());
       formData.append('judges', judges.trim());
       formData.append('dateOfJudgement', dateOfJudgement);
       formData.append('subject', subject.trim());
-      formData.append('legalProvisions', legalProvisions.trim());
+      formData.append('category', category.trim() || subject.trim());
       formData.append('summary', summary.trim());
+      formData.append('sourceReference', sourceReference.trim());
 
-      const ratioDecidendiArray = [ratio1.trim(), ratio2.trim(), ratio3.trim()].filter(Boolean);
-      formData.append('ratioDecidendi', JSON.stringify(ratioDecidendiArray));
+      // Key Holdings
+      const validHoldings = keyHoldings.filter((k) => k.title.trim() || k.text.trim());
+      formData.append('keyHoldings', JSON.stringify(validHoldings));
+      formData.append(
+        'ratioDecidendi',
+        JSON.stringify(validHoldings.map((k) => `${k.title} ${k.text}`.trim()))
+      );
+
+      // Provisions
+      const validProvisions = provisions.filter((p) => p.label.trim());
+      formData.append('provisions', JSON.stringify(validProvisions));
+      formData.append(
+        'legalProvisions',
+        validProvisions.map((p) => p.label.trim()).join(', ')
+      );
+
+      // Markdown Full Analysis
+      formData.append('fullAnalysis', fullAnalysis.trim());
+
+      // Scheduling & Status
+      formData.append('status', status);
+      formData.append('dailyDateIST', dailyDateIST.trim());
+      formData.append('isDailyFeatured', String(isDailyFeatured));
+      formData.append('priority', String(priority));
+      formData.append('isPublished', String(status === 'published'));
 
       formData.append('mainsUtility', mainsUtility.trim());
       formData.append('overruledPrecedents', overruledPrecedents.trim());
       formData.append('tags', tags.trim());
       formData.append('importance', importance);
-      formData.append('isPublished', String(isPublished));
       formData.append('isFeatured', String(isFeatured));
 
       const res = await uploadJudgement(formData, (percent) => {
@@ -143,7 +255,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
       });
 
       if (res.success) {
-        toast.success('Landmark Judgement uploaded successfully!');
+        toast.success('Landmark Judgement created successfully!');
         onSuccess();
         onClose();
       }
@@ -157,7 +269,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="relative w-full max-w-3xl my-8 bg-[#1E1E1E] rounded-2xl border border-[#3D3D3D] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-4xl my-8 bg-[#1E1E1E] rounded-2xl border border-[#3D3D3D] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-[#262626] border-b border-[#3D3D3D]">
           <div className="flex items-center gap-2.5">
@@ -166,10 +278,10 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-serif font-bold text-[#F7F3E6]">
-                Upload Landmark Judgement Digest
+                Upload Landmark Judgement & Daily Digest
               </h2>
               <p className="text-xs text-[#A8A294]">
-                Authoritative precedent digest with 3-point ratio and Mains exam value-add
+                Authoritative precedent digest with holdings, legal provisions, scheduling, and optional PDF
               </p>
             </div>
           </div>
@@ -177,19 +289,95 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
           <button
             onClick={onClose}
             disabled={uploading}
-            className="p-1.5 rounded-lg text-[#A8A294] hover:text-[#F7F3E6] hover:bg-[#3D3D3D] transition-colors"
+            className="p-1.5 rounded-lg text-[#A8A294] hover:text-[#F7F3E6] hover:bg-[#3D3D3D] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
-          {/* File Drag-and-Drop Area */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
+          {/* Scheduling & Publication Status Bar */}
+          <div className="p-4 rounded-xl bg-[#262626] border border-[#3D3D3D] space-y-3">
+            <div className="flex items-center gap-2 text-[#C19B48] font-bold text-xs">
+              <Calendar className="w-4 h-4" />
+              <span>Daily Judgment Scheduling & Lifecycle Status</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block font-semibold text-[#A8A294] mb-1">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as JudgementStatus)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#1E1E1E] border border-[#3D3D3D] text-[#F7F3E6] focus:outline-none focus:border-[#C19B48]"
+                >
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#A8A294] mb-1">
+                  Scheduled Date (IST)
+                </label>
+                <input
+                  type="date"
+                  value={dailyDateIST}
+                  onChange={(e) => setDailyDateIST(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#1E1E1E] border border-[#3D3D3D] text-[#F7F3E6] focus:outline-none focus:border-[#C19B48]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#A8A294] mb-1">
+                  Featured Priority (1-10)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={priority}
+                  onChange={(e) => setPriority(Number(e.target.value) || 1)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#1E1E1E] border border-[#3D3D3D] text-[#F7F3E6] focus:outline-none focus:border-[#C19B48]"
+                />
+              </div>
+
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isDailyFeatured}
+                    onChange={(e) => setIsDailyFeatured(e.target.checked)}
+                    className="rounded border-[#3D3D3D] text-[#C19B48] focus:ring-[#C19B48] w-4 h-4 bg-[#1E1E1E]"
+                  />
+                  <span className="text-[#C19B48] font-semibold text-[11px]">
+                    Featured Landmark of Day
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Optional File Drag-and-Drop Area */}
           <div>
-            <label className="block font-semibold text-[#F7F3E6] mb-1.5">
-              Judgement Digest PDF Document <span className="text-red-400">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-semibold text-[#F7F3E6]">
+                Judgement PDF Document <span className="text-[#A8A294] font-normal">(Optional)</span>
+              </label>
+              {file && (
+                <button
+                  type="button"
+                  onClick={() => setFile(null)}
+                  className="text-[11px] text-red-400 hover:underline cursor-pointer"
+                >
+                  Remove attached file
+                </button>
+              )}
+            </div>
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -198,7 +386,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
               onDragLeave={() => setDragActive(false)}
               onDrop={handleFileDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
                 dragActive
                   ? 'border-[#C19B48] bg-[#C19B48]/10'
                   : file
@@ -224,12 +412,14 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <Upload className="w-7 h-7 text-[#C19B48] mx-auto" />
-                  <p className="text-[#F7F3E6] font-medium">
-                    Click to browse or drag & drop Judgement PDF file here
+                <div className="space-y-1">
+                  <Upload className="w-5 h-5 text-[#C19B48] mx-auto" />
+                  <p className="text-[#F7F3E6] font-medium text-xs">
+                    Drop Judgement PDF here or click to browse (Optional)
                   </p>
-                  <p className="text-[11px] text-[#A8A294]">PDF format up to 50MB</p>
+                  <p className="text-[10px] text-[#A8A294]">
+                    If omitted, the case law will use the dynamic HTML brief and structured ratio
+                  </p>
                 </div>
               )}
             </div>
@@ -261,7 +451,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Kesavananda Bharati v. State of Kerala"
+                placeholder="e.g. Selvi & Ors. v. State of Karnataka"
                 required
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
@@ -275,7 +465,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
                 type="text"
                 value={citation}
                 onChange={(e) => setCitation(e.target.value)}
-                placeholder="e.g. (1973) 4 SCC 225 | AIR 1973 SC 1461"
+                placeholder="e.g. (2010) 7 SCC 263"
                 required
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
@@ -298,13 +488,26 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
 
             <div>
               <label className="block font-semibold text-[#F7F3E6] mb-1">
+                Bench Strength (Pill badge)
+              </label>
+              <input
+                type="text"
+                value={benchStrength}
+                onChange={(e) => setBenchStrength(e.target.value)}
+                placeholder="e.g. 3-Judge Bench or 5-Judge Constitution Bench"
+                className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#F7F3E6] mb-1">
                 Coram / Bench Composition
               </label>
               <input
                 type="text"
                 value={bench}
                 onChange={(e) => setBench(e.target.value)}
-                placeholder="e.g. 13-Judge Constitutional Bench"
+                placeholder="e.g. 3-Judge Bench"
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
             </div>
@@ -324,13 +527,26 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
 
             <div>
               <label className="block font-semibold text-[#F7F3E6] mb-1">
+                Jurisprudence Category
+              </label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g. Constitutional Criminal Jurisprudence"
+                className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-[#F7F3E6] mb-1">
                 Subject Area <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="e.g. Constitutional Law / CrPC / CPC"
+                placeholder="e.g. Constitutional Law / Evidence Act"
                 required
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
@@ -359,20 +575,20 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
                 type="text"
                 value={judges}
                 onChange={(e) => setJudges(e.target.value)}
-                placeholder="e.g. S.M. Sikri, C.J., H.R. Khanna, J., Y.V. Chandrachud, J."
+                placeholder="e.g. K.G. Balakrishnan, C.J., R.V. Raveendran, J., J.M. Panchal, J."
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
             </div>
 
             <div className="sm:col-span-2">
               <label className="block font-semibold text-[#F7F3E6] mb-1">
-                Legal Provisions / Sections (Comma separated)
+                Source Reference & Official Link
               </label>
               <input
                 type="text"
-                value={legalProvisions}
-                onChange={(e) => setLegalProvisions(e.target.value)}
-                placeholder="e.g. Article 368, Article 13, Section 41 CrPC"
+                value={sourceReference}
+                onChange={(e) => setSourceReference(e.target.value)}
+                placeholder="e.g. (2010) 7 SCC 263 | Supreme Court of India"
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
             </div>
@@ -393,51 +609,140 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
             />
           </div>
 
-          {/* 3-Point Ratio Decidendi Formulation */}
+          {/* Key Legal Principles / Holdings (Reference UI Holding Bullets) */}
           <div className="p-4 rounded-xl bg-[#262626] border border-[#3D3D3D] space-y-3">
-            <span className="block font-bold text-[#C19B48] uppercase text-[11px] tracking-wider">
-              3-Point Ratio Decidendi (Formulated for Mains Answers)
-            </span>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-[#C19B48]/20 text-[#C19B48] font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
-                  I
-                </span>
-                <input
-                  type="text"
-                  value={ratio1}
-                  onChange={(e) => setRatio1(e.target.value)}
-                  placeholder="Point 1: Primary constitutional or statutory holding..."
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-[#1E1E1E] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-[#C19B48]/20 text-[#C19B48] font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
-                  II
-                </span>
-                <input
-                  type="text"
-                  value={ratio2}
-                  onChange={(e) => setRatio2(e.target.value)}
-                  placeholder="Point 2: Secondary holding / scope of limitation..."
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-[#1E1E1E] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-[#C19B48]/20 text-[#C19B48] font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
-                  III
-                </span>
-                <input
-                  type="text"
-                  value={ratio3}
-                  onChange={(e) => setRatio3(e.target.value)}
-                  placeholder="Point 3: Standard of scrutiny or binding guideline..."
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-[#1E1E1E] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
-                />
-              </div>
+            <div className="flex items-center justify-between">
+              <span className="block font-bold text-[#C19B48] uppercase text-[11px] tracking-wider">
+                Key Legal Principles & Holdings (Formatted with Bold Title & Text)
+              </span>
+              <button
+                type="button"
+                onClick={handleAddHolding}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#C19B48]/15 border border-[#C19B48]/30 text-[#C19B48] hover:bg-[#C19B48]/25 text-[11px] font-semibold cursor-pointer transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Holding</span>
+              </button>
             </div>
+
+            <div className="space-y-2.5">
+              {keyHoldings.map((holding, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-2 bg-[#1E1E1E] p-2.5 rounded-xl border border-[#3D3D3D]"
+                >
+                  <span className="w-5 h-5 rounded-full bg-amber-500/20 text-[#C19B48] font-bold text-[10px] flex items-center justify-center shrink-0 mt-1">
+                    {idx + 1}
+                  </span>
+
+                  <div className="flex-1 space-y-1.5">
+                    <input
+                      type="text"
+                      value={holding.title}
+                      onChange={(e) => handleHoldingChange(idx, 'title', e.target.value)}
+                      placeholder="Holding Title (e.g. Involuntary Administration:)"
+                      className="w-full px-3 py-1.5 rounded-lg bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] font-semibold placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+                    />
+                    <textarea
+                      value={holding.text}
+                      onChange={(e) => handleHoldingChange(idx, 'text', e.target.value)}
+                      rows={2}
+                      placeholder="Detailed ratio / constitutional holding text..."
+                      className="w-full px-3 py-1.5 rounded-lg bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+                    />
+                  </div>
+
+                  {keyHoldings.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveHolding(idx)}
+                      className="p-1 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors mt-1 cursor-pointer"
+                      title="Remove holding"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Relevant Articles / Sections / Acts (Dual-law Provision Badges) */}
+          <div className="p-4 rounded-xl bg-[#262626] border border-[#3D3D3D] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="block font-bold text-[#C19B48] uppercase text-[11px] tracking-wider">
+                Relevant Articles / Sections / Acts (Dual-Law Badges)
+              </span>
+              <button
+                type="button"
+                onClick={handleAddProvision}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#C19B48]/15 border border-[#C19B48]/30 text-[#C19B48] hover:bg-[#C19B48]/25 text-[11px] font-semibold cursor-pointer transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Provision</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {provisions.map((prov, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 bg-[#1E1E1E] p-2 rounded-xl border border-[#3D3D3D]"
+                >
+                  <input
+                    type="text"
+                    value={prov.label}
+                    onChange={(e) => handleProvisionChange(idx, 'label', e.target.value)}
+                    placeholder="e.g. Article 20(3) or Section 27"
+                    className="w-40 px-3 py-1.5 rounded-lg bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] font-semibold placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+                  />
+                  <input
+                    type="text"
+                    value={prov.actOrCode || ''}
+                    onChange={(e) => handleProvisionChange(idx, 'actOrCode', e.target.value)}
+                    placeholder="Act / Description (e.g. Constitution of India, 1950)"
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+                  />
+                  <select
+                    value={prov.badgeColor || 'amber'}
+                    onChange={(e) => handleProvisionChange(idx, 'badgeColor', e.target.value)}
+                    className="w-28 px-2 py-1.5 rounded-lg bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] focus:outline-none focus:border-[#C19B48]"
+                  >
+                    <option value="amber">Amber</option>
+                    <option value="blue">Blue</option>
+                    <option value="emerald">Emerald</option>
+                    <option value="purple">Purple</option>
+                    <option value="slate">Slate</option>
+                  </select>
+
+                  {provisions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveProvision(idx)}
+                      className="p-1 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
+                      title="Remove provision"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Full In-Depth Analysis (Markdown Dossier) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 font-semibold text-[#F7F3E6]">
+              <BookOpen className="w-4 h-4 text-[#C19B48]" />
+              <span>Full Judgment Analysis Dossier (Markdown Supported)</span>
+            </div>
+            <textarea
+              value={fullAnalysis}
+              onChange={(e) => setFullAnalysis(e.target.value)}
+              rows={5}
+              placeholder="Comprehensive analytical brief, ratio decidendi breakdown, constitutional matrix, landmark precedents comparison, and examination takeaways..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] font-mono text-xs placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+            />
           </div>
 
           {/* Mains Answer Utility & Overruled Precedents */}
@@ -448,7 +753,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
                 value={mainsUtility}
                 onChange={(e) => setMainsUtility(e.target.value)}
                 rows={2}
-                placeholder="e.g. Directly cited in judicial mains paper for questions concerning Article 368 vs Article 13..."
+                placeholder="Direct application in Mains GS-II or Law Optional..."
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
             </div>
@@ -459,7 +764,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
                 value={overruledPrecedents}
                 onChange={(e) => setOverruledPrecedents(e.target.value)}
                 rows={2}
-                placeholder="e.g. Overruled I.C. Golaknath v. State of Punjab (1967)..."
+                placeholder="e.g. Overruled or distinguished cases..."
                 className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
               />
             </div>
@@ -474,23 +779,13 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
               type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              placeholder="e.g. Basic Structure, Judicial Review, Due Process"
+              placeholder="e.g. Article 20(3), Narco Analysis, Right to Silence, Selvi"
               className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
             />
           </div>
 
-          {/* Publication & Spotlight Toggles */}
-          <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-[#3D3D3D]">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isPublished}
-                onChange={(e) => setIsPublished(e.target.checked)}
-                className="rounded border-[#3D3D3D] text-[#C19B48] focus:ring-[#C19B48] w-4 h-4 bg-[#262626]"
-              />
-              <span className="text-[#F7F3E6] font-medium">Publish immediately to Student Vault</span>
-            </label>
-
+          {/* Precedent Spotlight Checkbox */}
+          <div className="flex items-center gap-2 pt-2 border-t border-[#3D3D3D]">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -498,7 +793,10 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
                 onChange={(e) => setIsFeatured(e.target.checked)}
                 className="rounded border-[#3D3D3D] text-[#C19B48] focus:ring-[#C19B48] w-4 h-4 bg-[#262626]"
               />
-              <span className="text-[#C19B48] font-medium">Spotlight as Precedent of the Day</span>
+              <span className="text-[#C19B48] font-semibold flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5" />
+                Featured Precedent in Case Vault
+              </span>
             </label>
           </div>
 
@@ -522,7 +820,7 @@ export const UploadJudgementModal: React.FC<UploadJudgementModalProps> = ({
               ) : (
                 <Upload className="w-4 h-4" />
               )}
-              <span>{uploading ? 'Publishing Precedent...' : 'Upload & Publish Precedent'}</span>
+              <span>{uploading ? 'Saving Precedent...' : 'Save & Publish Precedent'}</span>
             </button>
           </div>
         </form>

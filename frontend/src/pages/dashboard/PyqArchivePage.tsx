@@ -11,6 +11,7 @@ import { fetchPublishedPyqs, fetchPyqFilterMeta } from '../../services/pyq.servi
 import { PyqFilterBar } from '../../components/pyq/PyqFilterBar';
 import { PyqPaperCard } from '../../components/pyq/PyqPaperCard';
 import { PyqViewerModal } from '../../components/pyq/PyqViewerModal';
+import { PyqCardSkeleton } from '../../components/ui/skeleton';
 
 export const PyqArchivePage: React.FC = () => {
   const [papers, setPapers] = useState<PyqPaper[]>([]);
@@ -144,29 +145,7 @@ export const PyqArchivePage: React.FC = () => {
 
       {/* Main Content Area */}
       {loading ? (
-        // Skeleton Loading State
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 animate-pulse"
-            >
-              <div className="flex justify-between items-center">
-                <div className="h-5 w-24 bg-slate-200 dark:bg-[#143564] rounded-full" />
-                <div className="h-5 w-16 bg-slate-200 dark:bg-[#143564] rounded" />
-              </div>
-              <div className="h-6 w-4/5 bg-slate-200 dark:bg-[#143564] rounded" />
-              <div className="space-y-2">
-                <div className="h-3 w-full bg-slate-200 dark:bg-[#143564] rounded" />
-                <div className="h-3 w-3/4 bg-slate-200 dark:bg-[#143564] rounded" />
-              </div>
-              <div className="pt-4 border-t border-slate-100 dark:border-[#143564] flex justify-between">
-                <div className="h-4 w-20 bg-slate-200 dark:bg-[#143564] rounded" />
-                <div className="h-8 w-24 bg-slate-200 dark:bg-[#143564] rounded-xl" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <PyqCardSkeleton count={6} />
       ) : error ? (
         // Error State
         <div className="p-10 rounded-2xl bg-white dark:bg-[#0a1c36] border border-rose-200 dark:border-rose-950 text-center space-y-3">

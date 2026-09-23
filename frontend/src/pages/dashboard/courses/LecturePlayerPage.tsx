@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
   BookOpen,
   Play,
   Pause,
@@ -8,7 +9,6 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-  RotateCcw,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -22,17 +22,79 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Check,
-  Terminal,
+  ThumbsUp,
+  ThumbsDown,
+  Bookmark,
+  MessageSquare,
+  Loader2,
+  CornerDownRight,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../../lib/toast';
 import { ThemeSwitcher } from '../../../components/dashboard/ThemeSwitcher';
+import apiClient from '../../../lib/apiClient';
+import { CustomSelect } from '../../../components/ui/CustomSelect';
+import { LecturePlayerSkeleton } from '../../../components/ui/skeleton';
 
-interface LessonItem {
+interface LessonDetail {
   id: string;
   title: string;
-  type: 'video' | 'quiz' | 'problem' | 'document';
-  score: string;
+  type: 'video' | 'quiz' | 'problem' | 'document' | 'resource' | 'lecture';
+  order: number;
   duration?: string;
+  durationSeconds: number;
+  score?: string;
+  points: number;
+  videoUrl?: string;
+  videoThumbnail?: string;
+  documentContent?: string[];
+  quizData?: Array<{
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+    points: number;
+  }>;
+  problemData?: {
+    problemStatement: string;
+    exampleInput?: string;
+    exampleOutput?: string;
+    modelAnswer?: string;
+    hint?: string;
+  };
+  resourceFile?: {
+    fileName: string;
+    fileUrl: string;
+    fileSize?: string;
+  };
+  likesCount: number;
+  dislikesCount: number;
+  commentsCount: number;
+  userReaction: 'like' | 'dislike' | null;
+  isCompleted: boolean;
+  videoWatchSeconds: number;
+  quizScore: number;
+  isBookmarked: boolean;
+}
+
+interface ModuleInfo {
+  id: string;
+  title: string;
+  progressPercent: number;
+  videoCount: number;
+  problemCount: number;
+  mcqCount: number;
+  completedCount: number;
+}
+
+interface DrawerLesson {
+  id: string;
+  title: string;
+  type: 'video' | 'quiz' | 'problem' | 'document' | 'resource' | 'lecture';
+  duration?: string;
+  score?: string;
+  completed: boolean;
+  userScore?: number;
+  points: number;
   question?: string;
   options?: string[];
   correctIndex?: number;
@@ -43,569 +105,1139 @@ interface LessonItem {
   documentContent?: string[];
 }
 
-const moduleLessons: LessonItem[] = [
-  {
-    id: 'lesson-1',
-    title: 'Java Installation & Choosing the Right IDE',
-    type: 'video',
-    score: '10/10',
-    duration: '28:45',
-  },
-  {
-    id: 'lesson-2',
-    title: 'IDE Full Form',
-    type: 'quiz',
-    score: '20/20',
-    question: 'What does the acronym "IDE" stand for in software engineering?',
-    options: [
-      'Integrated Development Environment',
-      'Internal Data Engine',
-      'Interactive Debugging Entity',
-      'Interface Design Ecosystem',
-    ],
-    correctIndex: 0,
-    explanation:
-      'An IDE (Integrated Development Environment) provides comprehensive facilities to computer programmers for software development, typically consisting of a source code editor, build automation tools, and a debugger.',
-  },
-  {
-    id: 'lesson-3',
-    title: 'File Extension for Java',
-    type: 'quiz',
-    score: '20/20',
-    question: 'What is the file extension of Java source code files before compilation?',
-    options: ['.class', '.java', '.jvm', '.js'],
-    correctIndex: 1,
-    explanation:
-      'Java source code is written in plain text files with the .java extension. When compiled with javac, it generates bytecode in .class files.',
-  },
-  {
-    id: 'lesson-4',
-    title: 'Create a New Java Class',
-    type: 'quiz',
-    score: '20/20',
-    question: 'Which keyword is used to declare a class in Java?',
-    options: ['struct', 'define', 'class', 'object'],
-    correctIndex: 2,
-    explanation:
-      'In Java, every application begins with a class definition using the "class" keyword followed by the class identifier.',
-  },
-  {
-    id: 'lesson-5',
-    title: 'Entry Point of a Program',
-    type: 'quiz',
-    score: '20/20',
-    question: 'What is the exact signature of the entry point method for any standard standalone Java application?',
-    options: [
-      'public void start(String[] args)',
-      'public static void main(String[] args)',
-      'private static int main()',
-      'public abstract void run()',
-    ],
-    correctIndex: 1,
-    explanation:
-      'The Java Virtual Machine (JVM) calls the method "public static void main(String[] args)" to start program execution.',
-  },
-  {
-    id: 'lesson-6',
-    title: 'Two Sum',
-    type: 'problem',
-    score: '10/10',
-    problemStatement:
-      'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.',
-    exampleInput: 'nums = [2, 7, 11, 15], target = 9',
-    exampleOutput: '[0, 1]  (Because nums[0] + nums[1] == 2 + 7 == 9)',
-  },
-  {
-    id: 'lesson-7',
-    title: 'Installation & IDE',
-    type: 'document',
-    score: '0/1',
-    documentContent: [
-      'Step 1: Download JDK 22 (Java Development Kit) for your operating system (Windows x64 Installer, macOS DMG, or Linux deb/rpm) from the official Oracle repository.',
-      'Step 2: Run the installer wizard and choose the default installation directory (e.g., C:\\Program Files\\Java\\jdk-22).',
-      'Step 3: Configure Environment Variables - Add JAVA_HOME pointing to your JDK root and append %JAVA_HOME%\\bin to your system PATH variable.',
-      'Step 4: Verify installation in Terminal or PowerShell by running: java -version and javac -version.',
-      'Step 5: Install an IDE - Download IntelliJ IDEA Community Edition or VS Code with the "Extension Pack for Java".',
-    ],
-  },
-];
+interface CommentItem {
+  id: string;
+  userName: string;
+  userAvatar?: string;
+  userRole: string;
+  content: string;
+  likesCount: number;
+  isLikedByMe: boolean;
+  createdAt: string;
+  replies: Array<{
+    id: string;
+    userName: string;
+    userAvatar?: string;
+    userRole: string;
+    content: string;
+    likesCount: number;
+    isLikedByMe: boolean;
+    createdAt: string;
+  }>;
+}
 
 export const LecturePlayerPage: React.FC = () => {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId: string }>();
   const navigate = useNavigate();
 
-  // Find active lesson index
-  const activeIndex = Math.max(
-    0,
-    moduleLessons.findIndex((l) => l.id === lessonId)
-  );
-  const currentLesson = moduleLessons[activeIndex] || moduleLessons[0];
+  // Data states
+  const [lesson, setLesson] = useState<LessonDetail | null>(null);
+  const [moduleInfo, setModuleInfo] = useState<ModuleInfo | null>(null);
+  const [moduleLessons, setModuleLessons] = useState<DrawerLesson[]>([]);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // UI state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
   const [isLessonAccordionOpen, setIsLessonAccordionOpen] = useState(true);
   const [isDoubtModalOpen, setIsDoubtModalOpen] = useState(false);
   const [doubtText, setDoubtText] = useState('');
+  const [doubtCategory, setDoubtCategory] = useState<string>('Bare Act Interpretation');
+  const [isSubmittingDoubt, setIsSubmittingDoubt] = useState(false);
+
+  // Discussion state
+  const [newCommentText, setNewCommentText] = useState('');
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isPostingComment, setIsPostingComment] = useState(false);
 
   // Video playback states
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(1725);
+  const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
-  const [currentTime, setCurrentTime] = useState<number>(254); // 04:14
-  const totalDuration = 1725; // 28:45
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [hasRestoredTimestamp, setHasRestoredTimestamp] = useState(false);
 
   // Quiz state
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizResult, setQuizResult] = useState<any>(null);
 
-  // Problem test run state
-  const [isTestRunning, setIsTestRunning] = useState(false);
-  const [testsPassed, setTestsPassed] = useState(false);
+  // Problem state
+  const [problemCode, setProblemCode] = useState('');
+  const [problemSubmitted, setProblemSubmitted] = useState(false);
 
-  // Reset quiz / problem state when switching lessons
-  useEffect(() => {
-    setSelectedOption(null);
-    setIsAnswerSubmitted(false);
-    setIsTestRunning(false);
-    setTestsPassed(false);
-  }, [lessonId]);
+  // Fetch lesson data & comments
+  const fetchLessonData = async () => {
+    if (!courseId || !lessonId) return;
+    try {
+      setIsLoading(true);
+      setError(null);
+      const [lessonRes, commentsRes] = await Promise.all([
+        apiClient.get(`/courses/${courseId}/lessons/${lessonId}`),
+        apiClient
+          .get(`/courses/${courseId}/lessons/${lessonId}/comments`)
+          .catch(() => ({ data: { data: [] } })),
+      ]);
 
-  // Video playback timer simulation
-  useEffect(() => {
-    let interval: any;
-    if (isPlaying && currentLesson.type === 'video') {
-      interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= totalDuration) {
-            setIsPlaying(false);
-            return totalDuration;
-          }
-          return prev + 1;
-        });
-      }, 1000 / playbackSpeed);
+      if (lessonRes.data?.data) {
+        const { lesson: l, module: m, moduleLessons: ml } = lessonRes.data.data;
+        setLesson(l);
+        setModuleInfo(m);
+        setModuleLessons(ml || []);
+        setCurrentTime(l.videoWatchSeconds || 0);
+        setDuration(l.durationSeconds || 1725);
+        setHasRestoredTimestamp(false);
+
+        // Reset interactive states for current lesson
+        setSelectedAnswers({});
+        setQuizSubmitted(false);
+        setQuizResult(null);
+        setProblemCode('');
+        setProblemSubmitted(false);
+      }
+
+      if (commentsRes.data?.data) {
+        setComments(commentsRes.data.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to load lesson:', err);
+      setError(err?.response?.data?.message || 'Failed to load lesson.');
+    } finally {
+      setIsLoading(false);
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, playbackSpeed, currentLesson.type]);
+  };
 
+  // Telemetry session references
+  const telemetrySessionIdRef = useRef<string>(`sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+  const lastHeartbeatPosRef = useRef<number>(0);
+  const lastHeartbeatTimeRef = useRef<number>(Date.now());
+  const scrubFlagRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    fetchLessonData();
+  }, [courseId, lessonId]);
+
+  // Video progress telemetry heartbeat (every 10s while playing)
+  useEffect(() => {
+    if (!isPlaying || !courseId || !lessonId) return;
+
+    const interval = setInterval(() => {
+      if (videoRef.current) {
+        const currentSecs = Math.floor(videoRef.current.currentTime);
+        const durationSecs = Math.floor(videoRef.current.duration || duration);
+        const now = Date.now();
+        const timeElapsedSecs = (now - lastHeartbeatTimeRef.current) / 1000;
+        const posDiff = currentSecs - lastHeartbeatPosRef.current;
+
+        // Scrub detected if position jumped > 30s without proportional time elapsed
+        if (posDiff > 30 && posDiff > timeElapsedSecs * 2.5) {
+          scrubFlagRef.current = true;
+        }
+
+        apiClient
+          .post(`/courses/${courseId}/lessons/${lessonId}/telemetry`, {
+            sessionId: telemetrySessionIdRef.current,
+            playbackSpeed: playbackRate,
+            watchedSeconds: currentSecs,
+            lastPositionSeconds: currentSecs,
+            videoDurationSeconds: durationSecs,
+            scrubDetected: scrubFlagRef.current,
+            deviceInfo: {
+              deviceModel: navigator.userAgent.includes('Mac') ? 'MacBook Pro' : 'Desktop Windows',
+              os: navigator.platform || 'Desktop OS',
+              browser: 'Chrome / Web Browser',
+              location: 'New Delhi, India',
+            },
+          })
+          .catch((err) => console.error('Telemetry heartbeat sync error:', err));
+
+        lastHeartbeatPosRef.current = currentSecs;
+        lastHeartbeatTimeRef.current = now;
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, courseId, lessonId, duration, playbackRate]);
+
+  // Sync watch time on pause / ended
+  const handleSyncProgress = async (forceCompleted?: boolean) => {
+    if (!courseId || !lessonId) return;
+    const currentSecs = videoRef.current ? Math.floor(videoRef.current.currentTime) : currentTime;
+    const durationSecs = videoRef.current
+      ? Math.floor(videoRef.current.duration || duration)
+      : duration;
+
+    try {
+      const res = await apiClient.post(`/courses/${courseId}/lessons/${lessonId}/telemetry`, {
+        sessionId: telemetrySessionIdRef.current,
+        playbackSpeed: playbackRate,
+        watchedSeconds: currentSecs,
+        lastPositionSeconds: currentSecs,
+        videoDurationSeconds: durationSecs,
+        scrubDetected: scrubFlagRef.current,
+        isCompleted: forceCompleted,
+      });
+      if (res.data?.data?.isCompleted && !lesson?.isCompleted) {
+        setLesson((prev) => (prev ? { ...prev, isCompleted: true } : null));
+        toast.success('Lesson marked as completed! Points awarded.');
+      }
+    } catch (err) {
+      console.error('Progress sync error:', err);
+    }
+  };
+
+  // Restore timestamp on video metadata loaded
+  const handleLoadedMetadata = () => {
+    if (videoRef.current && lesson?.videoWatchSeconds && !hasRestoredTimestamp) {
+      videoRef.current.currentTime = lesson.videoWatchSeconds;
+      setCurrentTime(lesson.videoWatchSeconds);
+      setHasRestoredTimestamp(true);
+    }
+  };
+
+  // Video playback controls
   const togglePlay = () => {
-    setIsPlaying(!isPlaying);
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+        handleSyncProgress();
+      } else {
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+    } else {
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    setCurrentTime(time);
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vol = parseFloat(e.target.value);
+    setVolume(vol);
+    setIsMuted(vol === 0);
+    if (videoRef.current) {
+      videoRef.current.volume = vol;
+      videoRef.current.muted = vol === 0;
+    }
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    if (videoRef.current) {
+      const nextMute = !isMuted;
+      setIsMuted(nextMute);
+      videoRef.current.muted = nextMute;
+    } else {
+      setIsMuted(!isMuted);
+    }
   };
 
-  const handleSpeedChange = () => {
-    const speeds = [1, 1.25, 1.5, 2];
-    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length;
-    setPlaybackSpeed(speeds[nextIdx]);
-    toast.info(`Playback speed: ${speeds[nextIdx]}x`);
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackRate(speed);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
   };
 
-  const handleLessonSwitch = (newLessonId: string) => {
-    navigate(`/dashboard/courses/${courseId || 'java-dsa'}/learn/${newLessonId}`);
+  const toggleFullscreen = () => {
+    if (!playerContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().catch((err) => {
+        toast.error(`Fullscreen request failed: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(console.error);
+      setIsFullscreen(false);
+    }
   };
+
+  const formatTime = (timeInSeconds: number) => {
+    const mins = Math.floor(timeInSeconds / 60);
+    const secs = Math.floor(timeInSeconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Like / Dislike reaction toggling
+  const handleToggleReaction = async (reactionType: 'like' | 'dislike') => {
+    if (!courseId || !lessonId || !lesson) return;
+    const targetReaction = lesson.userReaction === reactionType ? null : reactionType;
+    try {
+      const res = await apiClient.post(`/courses/${courseId}/lessons/${lessonId}/reaction`, {
+        reactionType: targetReaction,
+      });
+      if (res.data?.data) {
+        setLesson({
+          ...lesson,
+          likesCount: res.data.data.likesCount,
+          dislikesCount: res.data.data.dislikesCount,
+          userReaction: res.data.data.userReaction,
+        });
+        if (targetReaction === 'like') {
+          toast.success('Liked lecture!');
+        }
+      }
+    } catch (err: any) {
+      toast.error('Failed to update reaction.');
+    }
+  };
+
+  // Bookmark toggling
+  const handleToggleBookmark = async () => {
+    if (!courseId || !lessonId || !lesson) return;
+    try {
+      const res = await apiClient.post(`/courses/${courseId}/lessons/${lessonId}/bookmark`);
+      if (res.data?.data) {
+        const nextState = res.data.data.isBookmarked;
+        setLesson({ ...lesson, isBookmarked: nextState });
+        toast.success(nextState ? 'Saved to Bookmarks Vault!' : 'Removed from Bookmarks.');
+      }
+    } catch (err) {
+      toast.error('Failed to update bookmark.');
+    }
+  };
+
+  // Submit Doubt Modal
+  const handleDoubtSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!doubtText.trim() || !courseId || !lesson) return;
+
+    try {
+      setIsSubmittingDoubt(true);
+      const videoTime = formatTime(currentTime);
+      await apiClient.post('/doubts', {
+        subject: 'Procedural Law & Curriculum',
+        category: doubtCategory,
+        title: `Doubt on ${lesson.title} (${videoTime})`,
+        initialQuestion: doubtText.trim(),
+        priority: 'normal',
+        courseId,
+        moduleId: moduleInfo?.id,
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        videoTimestamp: videoTime,
+      });
+
+      toast.success('Doubt submitted to Academic Faculty!');
+      setDoubtText('');
+      setIsDoubtModalOpen(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to submit doubt.');
+    } finally {
+      setIsSubmittingDoubt(false);
+    }
+  };
+
+  // Add Comment
+  const handleAddComment = async (parentCommentId?: string) => {
+    const text = parentCommentId ? replyText : newCommentText;
+    if (!text.trim() || !courseId || !lessonId) return;
+
+    try {
+      setIsPostingComment(true);
+      const res = await apiClient.post(`/courses/${courseId}/lessons/${lessonId}/comments`, {
+        content: text.trim(),
+        parentCommentId: parentCommentId || null,
+      });
+
+      if (res.data?.data) {
+        toast.success(parentCommentId ? 'Reply posted!' : 'Comment posted!');
+        if (parentCommentId) {
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === parentCommentId
+                ? { ...c, replies: [...c.replies, res.data.data] }
+                : c
+            )
+          );
+          setReplyText('');
+          setReplyingToCommentId(null);
+        } else {
+          setComments((prev) => [res.data.data, ...prev]);
+          setNewCommentText('');
+        }
+      }
+    } catch (err: any) {
+      toast.error('Failed to post comment.');
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
+
+  // Like Comment
+  const handleLikeComment = async (commentId: string) => {
+    if (!courseId || !lessonId) return;
+    try {
+      const res = await apiClient.post(
+        `/courses/${courseId}/lessons/${lessonId}/comments/${commentId}/like`
+      );
+      if (res.data?.data) {
+        const { likesCount, isLikedByMe } = res.data.data;
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c.id === commentId) {
+              return { ...c, likesCount, isLikedByMe };
+            }
+            return {
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === commentId ? { ...r, likesCount, isLikedByMe } : r
+              ),
+            };
+          })
+        );
+      }
+    } catch (err) {
+      toast.error('Failed to like comment.');
+    }
+  };
+
+  // Quiz submission
+  const handleQuizSubmit = async () => {
+    if (!courseId || !lessonId || !lesson?.quizData) return;
+    const answers = lesson.quizData.map((_, idx) => selectedAnswers[idx] ?? -1);
+
+    try {
+      const res = await apiClient.post(`/courses/${courseId}/lessons/${lessonId}/quiz-submit`, {
+        answers,
+      });
+      if (res.data?.data) {
+        setQuizResult(res.data.data);
+        setQuizSubmitted(true);
+        setLesson((prev) => (prev ? { ...prev, isCompleted: true } : null));
+        toast.success(`Quiz Completed! Scored ${res.data.data.score}/${res.data.data.totalScore} pts`);
+      }
+    } catch (err: any) {
+      toast.error('Failed to submit quiz.');
+    }
+  };
+
+  // Navigation between lessons in module
+  const currentLessonIndex = moduleLessons.findIndex((l) => l.id === lessonId);
+  const activeIndex = Math.max(0, currentLessonIndex);
 
   const handlePrevLesson = () => {
     if (activeIndex > 0) {
-      handleLessonSwitch(moduleLessons[activeIndex - 1].id);
+      const prev = moduleLessons[activeIndex - 1];
+      navigate(`/dashboard/courses/${courseId}/learn/${prev.id}`);
     }
   };
 
   const handleNextLesson = () => {
     if (activeIndex < moduleLessons.length - 1) {
-      handleLessonSwitch(moduleLessons[activeIndex + 1].id);
+      const next = moduleLessons[activeIndex + 1];
+      navigate(`/dashboard/courses/${courseId}/learn/${next.id}`);
     }
   };
 
-  const handleDoubtSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!doubtText.trim()) return;
-    toast.success('Doubt submitted to Instructor! You will receive response shortly.');
-    setDoubtText('');
-    setIsDoubtModalOpen(false);
-  };
+  if (isLoading) {
+    return <LecturePlayerSkeleton />;
+  }
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-  };
+  if (error || !lesson) {
+    return (
+      <div className="h-screen max-h-screen bg-[#F7F3E6] dark:bg-[#060a12] text-slate-900 dark:text-slate-100 p-6 flex items-center justify-center">
+        <div className="max-w-md w-full p-8 rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] text-center space-y-4 shadow-xl">
+          <BookOpen className="w-12 h-12 text-rose-500 mx-auto" />
+          <h2 className="text-lg font-serif font-bold text-slate-900 dark:text-white">
+            Lesson Unavailable
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400">{error || 'Could not load lesson.'}</p>
+          <button
+            onClick={() => navigate(`/dashboard/courses/${courseId}`)}
+            className="px-4 py-2 rounded-xl bg-[#c19b48] text-[#061120] text-xs font-semibold"
+          >
+            Back to Course Syllabus
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-100/80 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 flex flex-col justify-between select-none transition-colors">
-      {/* Top Header Bar */}
-      <header className="h-12 bg-white dark:bg-[#090d16] border-b border-slate-200 dark:border-[#141b2b] px-4 flex items-center justify-between shrink-0 transition-colors">
-        <button
-          type="button"
-          onClick={() => navigate(`/dashboard/courses/${courseId || 'java-dsa'}`)}
-          className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white transition-colors group cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-45 transition-transform" />
-          <span>Go Back</span>
-        </button>
+    <div className="h-screen max-h-screen bg-[#F7F3E6] dark:bg-[#060a12] text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden transition-colors">
+      {/* Top Bar matching Image 6 */}
+      <header className="h-14 bg-white dark:bg-[#090d16] border-b border-slate-200 dark:border-[#141b2b] px-4 flex items-center justify-between shrink-0 z-30 transition-colors">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate(`/dashboard/courses/${courseId}`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-[#0f172a] text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#1a2846] transition-colors text-xs font-semibold shrink-0 cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Syllabus</span>
+          </button>
 
-        <div className="flex items-center gap-2.5">
-          <ThemeSwitcher />
+          <div className="h-4 w-px bg-slate-200 dark:bg-[#1f2d48] hidden sm:block" />
+
           <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#121a2c] transition-colors cursor-pointer"
-            title={isSidebarOpen ? 'Collapse lesson drawer' : 'Expand lesson drawer'}
+            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#141e32] transition-colors cursor-pointer"
+            title={isSidebarOpen ? 'Collapse Drawer' : 'Expand Drawer'}
           >
-            {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            {isSidebarOpen ? (
+              <PanelLeftClose className="w-4 h-4" />
+            ) : (
+              <PanelLeftOpen className="w-4 h-4" />
+            )}
+          </button>
+
+          <div className="min-w-0 flex items-center gap-2">
+            <span className="text-xs font-semibold text-[#c19b48] dark:text-[#e8cf8d] hidden md:inline truncate">
+              {moduleInfo?.title}
+            </span>
+            <span className="text-xs text-slate-400 hidden md:inline">•</span>
+            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+              {lesson.title}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <ThemeSwitcher />
+
+          {/* Ask a Doubt Button */}
+          <button
+            type="button"
+            onClick={() => setIsDoubtModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg bg-[#c19b48]/15 hover:bg-[#c19b48]/25 text-[#c19b48] dark:text-[#e8cf8d] border border-[#c19b48]/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Ask Doubt</span>
           </button>
         </div>
       </header>
 
-      {/* Main 2-Column Layout matching Image 6 (media_1789164227250.png) */}
-      <main className="flex-1 flex overflow-hidden relative">
-        {/* Left Column: Lesson Drawer */}
+      {/* Main Body */}
+      <main className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* Mobile Backdrop for Drawer (< 1024px) */}
         {isSidebarOpen && (
-          <aside className="w-72 sm:w-80 border-r border-slate-200 dark:border-[#141b2b] bg-white dark:bg-[#070b14] p-3 flex flex-col gap-3 shrink-0 overflow-y-auto custom-scrollbar transition-colors">
-            {/* Module Progress Card */}
-            <div className="rounded-xl bg-slate-50 dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-3.5 shadow-xs transition-colors">
-              <button
-                type="button"
-                onClick={() => navigate(`/dashboard/courses/${courseId || 'java-dsa'}`)}
-                className="flex items-center gap-1 text-xs font-semibold text-slate-800 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white mb-2.5 group cursor-pointer"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
-                <span className="truncate">1 - Installation and IDE</span>
-              </button>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden animate-in fade-in duration-200"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
-              {/* Progress Percentage */}
-              <div className="text-[11px] font-semibold text-[#c19b48] dark:text-[#e8cf8d] mb-1">99.0% Complete</div>
-              <div className="w-full h-1 bg-slate-200 dark:bg-[#152034] rounded-full overflow-hidden mb-3">
-                <div className="h-full bg-[#c19b48] w-[99%] rounded-full" />
+        {/* Collapsible Left Drawer (Slide-over on mobile/tablet, in-flow on desktop) */}
+        <aside
+          className={`${
+            isSidebarOpen
+              ? 'fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm lg:static lg:z-20 lg:w-96 shadow-2xl lg:shadow-none'
+              : 'fixed -left-full lg:static lg:w-0'
+          } bg-white dark:bg-[#090d16] border-r border-slate-200 dark:border-[#141b2b] flex flex-col shrink-0 transition-all duration-300 overflow-hidden`}
+        >
+          {/* Mobile Drawer Header with Close Button (< 1024px) */}
+          <div className="flex items-center justify-between p-3.5 border-b border-slate-200 dark:border-[#141b2b] lg:hidden shrink-0">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-[#c19b48]" />
+              <span>Course Syllabus</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="p-3.5 sm:p-4 flex-1 flex flex-col min-h-0 space-y-3">
+            {/* Top Module Card */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] shrink-0 space-y-3 shadow-xs">
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
+                  {moduleInfo?.title || 'Current Module'}
+                </h3>
+                <div className="flex items-center justify-between text-[11px] font-semibold text-[#c19b48] dark:text-[#e8cf8d] mt-1">
+                  <span>Progress</span>
+                  <span>{moduleInfo?.progressPercent || 0}%</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-[#141e32] rounded-full h-1.5 overflow-hidden mt-1.5">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#c19b48] to-[#e8cf8d] rounded-full transition-all duration-500"
+                    style={{ width: `${moduleInfo?.progressPercent || 0}%` }}
+                  />
+                </div>
               </div>
 
-              {/* 4 Metric Columns matching Image 6 */}
-              <div className="grid grid-cols-4 gap-1 text-center pt-2 border-t border-slate-200 dark:border-[#141e32]">
-                <div>
-                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">Video</div>
-                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">1/1</div>
+              {/* 4 Mini KPI Boxes */}
+              <div className="grid grid-cols-4 gap-1.5 text-center">
+                <div className="p-1.5 rounded-lg bg-white dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32]">
+                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold">Video</div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {moduleInfo?.videoCount || 0}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">Problem</div>
-                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">1/1</div>
+                <div className="p-1.5 rounded-lg bg-white dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32]">
+                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold">Problem</div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {moduleInfo?.problemCount || 0}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">MCQs</div>
-                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200">4/4</div>
+                <div className="p-1.5 rounded-lg bg-white dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32]">
+                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold">MCQs</div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    {moduleInfo?.mcqCount || 0}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">Score</div>
-                  <div className="text-xs font-bold text-[#c19b48] dark:text-[#e8cf8d]">100/101</div>
+                <div className="p-1.5 rounded-lg bg-white dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32]">
+                  <div className="text-[9px] text-slate-500 dark:text-slate-400 font-semibold">Done</div>
+                  <div className="text-xs font-bold text-emerald-500">
+                    {moduleInfo?.completedCount || 0}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* LESSON Accordion List */}
-            <div className="rounded-xl bg-slate-50 dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-2 flex-1 flex flex-col overflow-hidden transition-colors">
+            {/* Accordion Lessons List */}
+            <div className="flex-1 flex flex-col min-h-0 rounded-2xl bg-slate-50 dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] overflow-hidden shadow-xs">
               <button
                 type="button"
                 onClick={() => setIsLessonAccordionOpen(!isLessonAccordionOpen)}
-                className="w-full flex items-center justify-between p-2 text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-300 uppercase hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                className="w-full p-3 flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#101726] transition-colors border-b border-slate-200 dark:border-[#141e32] cursor-pointer shrink-0"
               >
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-3.5 h-3.5 text-[#c19b48] dark:text-[#e8cf8d]" />
-                  <span>LESSON</span>
-                </div>
+                <span>Lessons in this Module ({moduleLessons.length})</span>
                 {isLessonAccordionOpen ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronUp className="w-4 h-4" />
                 ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="w-4 h-4" />
                 )}
               </button>
 
               {isLessonAccordionOpen && (
-                <div className="mt-1 space-y-1 overflow-y-auto custom-scrollbar pr-1 flex-1">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar divide-y divide-slate-200 dark:divide-[#141e32]">
                   {moduleLessons.map((item) => {
-                    const isActive = item.id === currentLesson.id;
+                    const isActive = item.id === lessonId;
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        type="button"
-                        onClick={() => handleLessonSwitch(item.id)}
-                        className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                        onClick={() => navigate(`/dashboard/courses/${courseId}/learn/${item.id}`)}
+                        className={`p-3 flex items-center justify-between transition-colors cursor-pointer ${
                           isActive
-                            ? 'bg-amber-500/10 dark:bg-[#15233c] text-[#c19b48] dark:text-[#e8cf8d] font-medium border border-amber-500/30 dark:border-[#c19b48]/40 shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#0e1626]'
+                            ? 'bg-amber-500/10 dark:bg-[#c19b48]/15 border-l-2 border-[#c19b48]'
+                            : 'hover:bg-slate-100 dark:hover:bg-[#101726]'
                         }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0 pr-2">
-                          {item.type === 'video' && (
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          {item.type === 'video' || item.type === 'lecture' ? (
                             <Play
                               className={`w-3.5 h-3.5 shrink-0 ${
-                                isActive ? 'text-[#c19b48] fill-[#c19b48] dark:text-[#e8cf8d] dark:fill-[#e8cf8d]' : 'text-slate-400 dark:text-slate-500'
+                                isActive ? 'text-[#c19b48]' : 'text-slate-400'
+                              }`}
+                            />
+                          ) : item.type === 'quiz' ? (
+                            <HelpCircle
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isActive ? 'text-sky-500' : 'text-slate-400'
+                              }`}
+                            />
+                          ) : item.type === 'problem' ? (
+                            <Code2
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isActive ? 'text-emerald-500' : 'text-slate-400'
+                              }`}
+                            />
+                          ) : (
+                            <FileText
+                              className={`w-3.5 h-3.5 shrink-0 ${
+                                isActive ? 'text-amber-500' : 'text-slate-400'
                               }`}
                             />
                           )}
-                          {item.type === 'quiz' && (
-                            <HelpCircle className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
-                          )}
-                          {item.type === 'problem' && (
-                            <Code2 className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
-                          )}
-                          {item.type === 'document' && (
-                            <FileText className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
-                          )}
 
-                          <span className="truncate">{item.title}</span>
+                          <div className="min-w-0">
+                            <h4
+                              className={`text-xs truncate ${
+                                isActive
+                                  ? 'font-bold text-[#c19b48] dark:text-[#e8cf8d]'
+                                  : 'font-medium text-slate-800 dark:text-slate-200'
+                              }`}
+                            >
+                              {item.title}
+                            </h4>
+                            <span className="text-[10px] text-slate-400 capitalize">
+                              {item.type} {item.duration && `• ${item.duration}`}
+                            </span>
+                          </div>
                         </div>
 
-                        <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 shrink-0">
-                          {item.score}
-                        </span>
-                      </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {item.score && (
+                            <span className="text-[10px] font-semibold text-[#c19b48] dark:text-[#e8cf8d]">
+                              {item.score}
+                            </span>
+                          )}
+                          {item.completed && (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
               )}
             </div>
-          </aside>
-        )}
+          </div>
+        </aside>
 
-        {/* Vertical Drawer Pill Handle */}
-        <button
-          type="button"
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="hidden sm:flex absolute left-0 sm:left-auto top-1/2 -translate-y-1/2 z-20 w-1.5 h-10 bg-slate-300 dark:bg-slate-400/50 hover:bg-[#c19b48] rounded-full transition-colors cursor-pointer"
-          style={{ left: isSidebarOpen ? 'calc(20rem - 3px)' : '4px' }}
-          title={isSidebarOpen ? 'Collapse drawer' : 'Expand drawer'}
-        />
-
-        {/* Right Main Content Area: Video Lecture / Quiz / Problem / Document */}
-        <div className="flex-1 flex flex-col min-w-0 bg-slate-100/60 dark:bg-[#06080e] p-3 sm:p-5 overflow-y-auto transition-colors">
-          {/* Top Video Lecture Bar */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-              <span>
-                {currentLesson.type === 'video'
-                  ? 'Video Lecture'
-                  : currentLesson.type === 'quiz'
-                  ? 'MCQ Assessment'
-                  : currentLesson.type === 'problem'
-                  ? 'Coding Problem'
-                  : 'Documentation Notes'}
-              </span>
-              <Play className="w-3 h-3 text-[#c19b48] fill-[#c19b48] dark:text-[#e8cf8d] dark:fill-[#e8cf8d]" />
+        {/* Center / Right Content Canvas */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar p-3.5 sm:p-5">
+          {/* Top Reaction & Meta Ribbon */}
+          <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-200 dark:border-[#141b2b]">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#c19b48]/15 text-[#c19b48] border border-[#c19b48]/30">
+                  {lesson.type.toUpperCase()}
+                </span>
+                {lesson.isCompleted && (
+                  <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Completed
+                  </span>
+                )}
+              </div>
+              <h1 className="text-base sm:text-xl font-bold font-serif text-slate-900 dark:text-white mt-1">
+                {lesson.title}
+              </h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Reaction Bar & Bookmark */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Like Button */}
               <button
                 type="button"
-                onClick={() => setIsDoubtModalOpen(true)}
-                className="px-3.5 py-1 rounded-md bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                onClick={() => handleToggleReaction('like')}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  lesson.userReaction === 'like'
+                    ? 'bg-[#c19b48] text-[#061120] border-[#c19b48]'
+                    : 'bg-white dark:bg-[#0b101c] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-[#141e32] hover:border-[#c19b48]'
+                }`}
+                title="Like Lecture"
               >
-                <HelpCircle className="w-3.5 h-3.5" />
-                <span>Doubt</span>
+                <ThumbsUp className="w-3.5 h-3.5" />
+                <span>{lesson.likesCount}</span>
               </button>
 
+              {/* Dislike Button */}
               <button
                 type="button"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                className="p-1 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-[#121a2c] transition-colors cursor-pointer"
-                title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                onClick={() => handleToggleReaction('dislike')}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  lesson.userReaction === 'dislike'
+                    ? 'bg-rose-500 text-white border-rose-500'
+                    : 'bg-white dark:bg-[#0b101c] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-[#141e32] hover:border-rose-500'
+                }`}
+                title="Dislike"
               >
-                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                <ThumbsDown className="w-3.5 h-3.5" />
+                <span>{lesson.dislikesCount}</span>
+              </button>
+
+              {/* Bookmark Button */}
+              <button
+                type="button"
+                onClick={handleToggleBookmark}
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  lesson.isBookmarked
+                    ? 'bg-[#c19b48]/20 border-[#c19b48] text-[#c19b48]'
+                    : 'bg-white dark:bg-[#0b101c] border-slate-200 dark:border-[#141e32] text-slate-500 hover:text-[#c19b48]'
+                }`}
+                title={lesson.isBookmarked ? 'Bookmarked' : 'Save Bookmark'}
+              >
+                <Bookmark className="w-4 h-4 fill-current" />
               </button>
             </div>
           </div>
 
-          {/* VIEW 1: VIDEO LECTURE (Replicating Image 6: media_1789164227250.png) */}
-          {currentLesson.type === 'video' && (
-            <div
-              className={`flex-1 flex flex-col justify-center ${
-                isFullscreen ? 'fixed inset-0 z-50 bg-black p-4' : ''
-              }`}
-            >
-              <div className="relative w-full aspect-video max-h-[75vh] rounded-2xl overflow-hidden border border-slate-300 dark:border-[#141e32] bg-black shadow-2xl group flex items-center justify-center">
-                {/* Visual Canvas: Screenshot from Image 6 */}
-                <img
-                  src="/java_video_screen.png"
-                  alt="Java Installation & Choosing the Right IDE Lecture"
-                  className="w-full h-full object-cover select-none pointer-events-none"
+          {/* VIEW 1: Video Lecture */}
+          {(lesson.type === 'video' || lesson.type === 'lecture') && (
+            <div className="flex-1 max-w-5xl mx-auto w-full space-y-5">
+              {/* Video Player Container */}
+              <div
+                ref={playerContainerRef}
+                className="w-full aspect-video rounded-2xl overflow-hidden bg-black relative shadow-2xl border border-slate-800 group"
+              >
+                {/* Real HTML5 Video Element */}
+                <video
+                  ref={videoRef}
+                  src={lesson.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'}
+                  onTimeUpdate={() => {
+                    if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
+                  }}
+                  onLoadedMetadata={handleLoadedMetadata}
+                  onEnded={() => {
+                    setIsPlaying(false);
+                    handleSyncProgress(true);
+                  }}
+                  onPause={() => {
+                    setIsPlaying(false);
+                    handleSyncProgress();
+                  }}
+                  onPlay={() => setIsPlaying(true)}
+                  className="w-full h-full object-cover"
                 />
 
-                {/* Center Circular Play/Pause Button */}
-                <button
-                  type="button"
-                  onClick={togglePlay}
-                  className={`absolute z-20 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900/70 hover:bg-[#c19b48] text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-2xl cursor-pointer ${
-                    isPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'
-                  }`}
-                  title={isPlaying ? 'Pause' : 'Play Video'}
-                >
-                  {isPlaying ? (
-                    <Pause className="w-7 h-7 sm:w-8 sm:h-8 fill-white" />
-                  ) : (
-                    <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white ml-1.5" />
-                  )}
-                </button>
-
-                {/* Bottom Scrubber & Control Bar */}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 sm:p-4 pt-8 z-20 opacity-90 group-hover:opacity-100 transition-opacity">
-                  {/* Progress Scrubber Bar */}
+                {/* Big Center Play/Pause button when paused */}
+                {!isPlaying && (
                   <div
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const clickX = e.clientX - rect.left;
-                      const percentage = clickX / rect.width;
-                      setCurrentTime(Math.floor(percentage * totalDuration));
-                    }}
-                    className="w-full h-1.5 bg-white/25 hover:h-2.5 rounded-full overflow-hidden mb-3 cursor-pointer transition-all"
+                    onClick={togglePlay}
+                    className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-2xs cursor-pointer z-10 transition-all"
                   >
-                    <div
-                      className="h-full bg-gradient-to-r from-[#c19b48] to-[#e8cf8d] rounded-full transition-all"
-                      style={{ width: `${(currentTime / totalDuration) * 100}%` }}
-                    />
+                    <div className="w-16 h-16 rounded-full bg-[#c19b48] text-[#061120] flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
+                      <Play className="w-8 h-8 fill-current ml-1" />
+                    </div>
                   </div>
+                )}
 
-                  {/* Player Controls */}
-                  <div className="flex items-center justify-between text-xs text-white">
-                    <div className="flex items-center gap-3.5">
-                      <button
-                        type="button"
-                        onClick={togglePlay}
-                        className="hover:text-[#c19b48] transition-colors cursor-pointer"
-                      >
-                        {isPlaying ? <Pause className="w-4 h-4 fill-white" /> : <Play className="w-4 h-4 fill-white" />}
+                {/* Video Controls Bar Overlay */}
+                <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                  {/* Scrubber */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 100}
+                    value={currentTime}
+                    onChange={handleSeek}
+                    className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#c19b48]"
+                  />
+
+                  {/* Buttons row */}
+                  <div className="flex items-center justify-between text-white text-xs">
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={togglePlay} className="hover:text-[#c19b48] cursor-pointer">
+                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={toggleMute}
-                        className="hover:text-[#c19b48] transition-colors cursor-pointer"
-                      >
+                      <button type="button" onClick={toggleMute} className="hover:text-[#c19b48] cursor-pointer">
                         {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                       </button>
 
-                      <span className="text-xs font-mono text-slate-300">
-                        {formatTime(currentTime)} / {formatTime(totalDuration)}
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-16 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#c19b48]"
+                      />
+
+                      <span className="font-mono text-[11px] text-slate-300">
+                        {formatTime(currentTime)} / {formatTime(duration)}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        1080p HD
-                      </span>
+                      {/* Speed selector */}
+                      <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-0.5">
+                        {[1, 1.25, 1.5, 2].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => handleSpeedChange(s)}
+                            className={`px-1 rounded text-[10px] font-bold ${
+                              playbackRate === s ? 'text-[#c19b48]' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {s}x
+                          </button>
+                        ))}
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={handleSpeedChange}
-                        className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-xs font-mono font-medium transition-colors cursor-pointer"
-                      >
-                        {playbackSpeed}x
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsFullscreen(!isFullscreen)}
-                        className="hover:text-[#c19b48] transition-colors cursor-pointer"
-                      >
-                        <Maximize2 className="w-4 h-4" />
+                      <button type="button" onClick={toggleFullscreen} className="hover:text-[#c19b48] cursor-pointer">
+                        {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* Discussion & Threaded Comments Section */}
+              <div className="rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-5 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#141e32] pb-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-[#c19b48]" />
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Lecture Discussion & Doubts ({comments.length})
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Add new top-level comment form */}
+                <div className="space-y-2">
+                  <textarea
+                    rows={2}
+                    value={newCommentText}
+                    onChange={(e) => setNewCommentText(e.target.value)}
+                    placeholder="Ask a question or share judicial insights on this lecture..."
+                    className="w-full rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] p-3 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48] resize-none"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      disabled={isPostingComment || !newCommentText.trim()}
+                      onClick={() => handleAddComment()}
+                      className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold transition-colors disabled:opacity-40 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Send className="w-3 h-3" />
+                      <span>Post Comment</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Comments List */}
+                <div className="space-y-4 pt-2">
+                  {comments.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-slate-400">
+                      No comments yet. Start the discussion!
+                    </div>
+                  ) : (
+                    comments.map((comment) => (
+                      <div
+                        key={comment.id}
+                        className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-[#c19b48]/20 text-[#c19b48] font-bold flex items-center justify-center text-[10px]">
+                              {comment.userName.charAt(0)}
+                            </div>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {comment.userName}
+                            </span>
+                            {comment.userRole === 'faculty' && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#c19b48] text-[#061120]">
+                                FACULTY
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(comment.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pl-8">
+                          {comment.content}
+                        </p>
+
+                        <div className="flex items-center gap-3 pl-8 pt-1 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => handleLikeComment(comment.id)}
+                            className={`flex items-center gap-1 hover:text-[#c19b48] cursor-pointer ${
+                              comment.isLikedByMe ? 'text-[#c19b48] font-bold' : 'text-slate-400'
+                            }`}
+                          >
+                            <ThumbsUp className="w-3 h-3" />
+                            <span>{comment.likesCount}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReplyingToCommentId(
+                                replyingToCommentId === comment.id ? null : comment.id
+                              )
+                            }
+                            className="text-slate-400 hover:text-slate-200 cursor-pointer font-medium"
+                          >
+                            Reply
+                          </button>
+                        </div>
+
+                        {/* Threaded Replies */}
+                        {comment.replies?.length > 0 && (
+                          <div className="pl-8 space-y-2 pt-2 border-t border-slate-200/60 dark:border-[#141e32]/60">
+                            {comment.replies.map((reply) => (
+                              <div
+                                key={reply.id}
+                                className="p-2.5 rounded-lg bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] space-y-1"
+                              >
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
+                                    <CornerDownRight className="w-3 h-3 text-[#c19b48]" />
+                                    <span>{reply.userName}</span>
+                                    {reply.userRole === 'faculty' && (
+                                      <span className="text-[8px] font-bold px-1 py-0.2 rounded bg-[#c19b48] text-[#061120]">
+                                        FACULTY
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[9px] text-slate-400">
+                                    {new Date(reply.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-700 dark:text-slate-300 pl-4">
+                                  {reply.content}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Reply Form */}
+                        {replyingToCommentId === comment.id && (
+                          <div className="pl-8 pt-2 space-y-2">
+                            <input
+                              type="text"
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              placeholder={`Reply to ${comment.userName}...`}
+                              className="w-full rounded-xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-2.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48]"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setReplyingToCommentId(null)}
+                                className="px-3 py-1 rounded-lg text-xs text-slate-400 hover:text-white"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAddComment(comment.id)}
+                                className="px-3 py-1 rounded-lg bg-[#c19b48] text-[#061120] text-xs font-bold"
+                              >
+                                Reply
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* VIEW 2: QUIZ / MCQ ASSESSMENT */}
-          {currentLesson.type === 'quiz' && (
-            <div className="flex-1 max-w-3xl mx-auto w-full py-6">
-              <div className="rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-6 shadow-xs transition-colors">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#141e32] pb-4 mb-5">
-                  <div className="flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-[#c19b48] dark:text-[#e8cf8d]" />
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">{currentLesson.title}</h2>
+          {/* VIEW 2: MCQ Assessment Runner */}
+          {lesson.type === 'quiz' && (
+            <div className="flex-1 max-w-3xl mx-auto w-full py-4 space-y-6">
+              <div className="rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-6 shadow-xs space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#141e32] pb-4">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-sky-500">
+                      Preliminary Assessment
+                    </span>
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                      {lesson.title}
+                    </h2>
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] border border-[#c19b48]/30">
-                    Points: {currentLesson.score}
-                  </span>
+                  {quizSubmitted && (
+                    <span className="px-3 py-1 rounded-xl bg-[#c19b48]/15 text-[#c19b48] border border-[#c19b48]/30 text-xs font-bold">
+                      Score: {quizResult?.score} / {quizResult?.totalScore} Points
+                    </span>
+                  )}
                 </div>
 
-                <div className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mb-6 leading-relaxed">
-                  {currentLesson.question}
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  {currentLesson.options?.map((opt, idx) => {
-                    const isSelected = selectedOption === idx;
-                    const isCorrect = idx === currentLesson.correctIndex;
-                    let style = 'bg-slate-50 dark:bg-[#070b14] border-slate-200 dark:border-[#141e32] text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-[#1e3458] hover:bg-slate-100 dark:hover:bg-[#0d1626]';
-
-                    if (isAnswerSubmitted) {
-                      if (isCorrect) {
-                        style = 'bg-emerald-500/15 border-emerald-500/50 text-emerald-700 dark:text-emerald-300 font-semibold';
-                      } else if (isSelected && !isCorrect) {
-                        style = 'bg-rose-500/15 border-rose-500/50 text-rose-700 dark:text-rose-300';
-                      }
-                    } else if (isSelected) {
-                      style = 'bg-amber-500/10 dark:bg-[#c19b48]/20 border-[#c19b48] text-[#c19b48] dark:text-[#e8cf8d] font-semibold';
-                    }
+                {/* Questions */}
+                <div className="space-y-6">
+                  {lesson.quizData?.map((q, qIndex) => {
+                    const selected = selectedAnswers[qIndex];
 
                     return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          if (!isAnswerSubmitted) setSelectedOption(idx);
-                        }}
-                        className={`w-full p-4 rounded-xl border text-left text-xs sm:text-sm flex items-center justify-between transition-all cursor-pointer ${style}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
-                            {String.fromCharCode(65 + idx)}
-                          </span>
-                          <span>{opt}</span>
+                      <div key={qIndex} className="space-y-3">
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
+                          <span className="text-[#c19b48] font-bold mr-1.5">Q{qIndex + 1}.</span>
+                          {q.question}
+                        </h4>
+
+                        <div className="space-y-2">
+                          {q.options.map((opt, optIndex) => {
+                            const isChosen = selected === optIndex;
+                            let optionClass =
+                              'p-3 rounded-xl border text-xs font-medium cursor-pointer transition-all flex items-center justify-between';
+
+                            if (quizSubmitted) {
+                              if (optIndex === q.correctIndex) {
+                                optionClass += ' bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold';
+                              } else if (isChosen) {
+                                optionClass += ' bg-rose-500/15 border-rose-500 text-rose-600 dark:text-rose-400 font-bold';
+                              } else {
+                                optionClass += ' bg-slate-50 dark:bg-[#070b14] border-slate-200 dark:border-[#141e32] opacity-50';
+                              }
+                            } else if (isChosen) {
+                              optionClass += ' bg-[#c19b48]/15 border-[#c19b48] text-[#c19b48] font-semibold';
+                            } else {
+                              optionClass +=
+                                ' bg-slate-50 dark:bg-[#070b14] border-slate-200 dark:border-[#141e32] hover:border-[#c19b48] text-slate-700 dark:text-slate-300';
+                            }
+
+                            return (
+                              <div
+                                key={optIndex}
+                                onClick={() => {
+                                  if (!quizSubmitted) {
+                                    setSelectedAnswers({ ...selectedAnswers, [qIndex]: optIndex });
+                                  }
+                                }}
+                                className={optionClass}
+                              >
+                                <span>{opt}</span>
+                                {quizSubmitted && optIndex === q.correctIndex && (
+                                  <Check className="w-4 h-4 text-emerald-500" />
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        {isAnswerSubmitted && isCorrect && (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+
+                        {/* Explanation Card */}
+                        {quizSubmitted && q.explanation && (
+                          <div className="p-3.5 rounded-xl bg-amber-500/5 dark:bg-[#c19b48]/10 border border-[#c19b48]/30 text-xs space-y-1 animate-in fade-in">
+                            <span className="font-bold text-[#c19b48] text-[10px] uppercase tracking-wider">
+                              Legal Analysis & Statutory Reference:
+                            </span>
+                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                              {q.explanation}
+                            </p>
+                          </div>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
 
-                {/* Explanation Box on Submit */}
-                {isAnswerSubmitted && (
-                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-[#081324] border border-emerald-200 dark:border-[#142646] mb-6">
-                    <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide mb-1">
-                      Correct Answer & Explanation
-                    </div>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{currentLesson.explanation}</p>
-                  </div>
-                )}
+                <div className="pt-4 border-t border-slate-200 dark:border-[#141e32] flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleToggleBookmark}
+                    className="text-xs text-[#c19b48] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Bookmark className="w-3.5 h-3.5" />
+                    <span>Bookmark Questions</span>
+                  </button>
 
-                {/* Submit / Next Button */}
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  {!isAnswerSubmitted ? (
+                  {!quizSubmitted ? (
                     <button
                       type="button"
-                      disabled={selectedOption === null}
-                      onClick={() => {
-                        setIsAnswerSubmitted(true);
-                        if (selectedOption === currentLesson.correctIndex) {
-                          toast.success('Correct Answer! +20 Points Earned');
-                        } else {
-                          toast.error('Incorrect option. Review the explanation.');
-                        }
-                      }}
-                      className="px-6 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] disabled:opacity-40 disabled:pointer-events-none text-[#061120] text-xs font-semibold transition-colors cursor-pointer"
+                      onClick={handleQuizSubmit}
+                      className="px-5 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold transition-all shadow-md cursor-pointer"
                     >
-                      Submit Answer
+                      Submit & Check Answers
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={handleNextLesson}
-                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
                     >
                       <span>Next Lesson</span>
                       <ChevronRight className="w-4 h-4" />
@@ -616,112 +1248,122 @@ export const LecturePlayerPage: React.FC = () => {
             </div>
           )}
 
-          {/* VIEW 3: CODING PROBLEM */}
-          {currentLesson.type === 'problem' && (
-            <div className="flex-1 max-w-4xl mx-auto w-full py-4 space-y-4">
-              <div className="rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-6 shadow-xs transition-colors">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#141e32] pb-4 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Code2 className="w-5 h-5 text-[#c19b48] dark:text-[#e8cf8d]" />
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">{currentLesson.title}</h2>
-                  </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                    Difficulty: Easy | Score: {currentLesson.score}
+          {/* VIEW 3: Problem Runner */}
+          {lesson.type === 'problem' && (
+            <div className="flex-1 max-w-4xl mx-auto w-full py-4 space-y-5">
+              <div className="rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-6 shadow-xs space-y-5">
+                <div className="border-b border-slate-200 dark:border-[#141e32] pb-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">
+                    Drafting / Problem Simulation
                   </span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                    {lesson.title}
+                  </h2>
                 </div>
 
-                <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line mb-4">
-                  {currentLesson.problemStatement}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase text-slate-400">Problem Statement</h4>
+                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    {lesson.problemData?.problemStatement}
+                  </p>
                 </div>
 
-                {/* Example */}
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] font-mono text-xs text-slate-700 dark:text-slate-300 space-y-1 mb-4">
-                  <div>
-                    <span className="text-slate-500">Input:</span> {currentLesson.exampleInput}
+                {lesson.problemData?.exampleInput && (
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] text-xs space-y-1">
+                    <span className="font-mono text-[10px] font-bold text-slate-400">SAMPLE FACTS / INPUT:</span>
+                    <p className="font-mono text-slate-600 dark:text-slate-300">{lesson.problemData.exampleInput}</p>
                   </div>
-                  <div>
-                    <span className="text-slate-500">Output:</span> {currentLesson.exampleOutput}
-                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Your Legal Arguments / Draft Solution:
+                  </label>
+                  <textarea
+                    rows={6}
+                    value={problemCode}
+                    onChange={(e) => setProblemCode(e.target.value)}
+                    placeholder="Enter your drafted arguments, citations and statutory provisions..."
+                    className="w-full rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] p-3 text-xs font-mono text-slate-900 dark:text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#c19b48]"
+                  />
                 </div>
 
-                {/* Code Solution snippet */}
-                <div className="rounded-xl bg-slate-950 border border-slate-800 p-4 font-mono text-xs text-slate-300 overflow-x-auto mb-4">
-                  <div className="text-slate-500 mb-2">// Solution: Optimal O(n) Hash Map approach in Java</div>
-                  <pre className="text-sky-300">
-{`class Solution {
-    public int[] twoSum(int[] nums, int target) {
-        Map<Integer, Integer> map = new HashMap<>();
-        for (int i = 0; i < nums.length; i++) {
-            int complement = target - nums[i];
-            if (map.containsKey(complement)) {
-                return new int[] { map.get(complement), i };
-            }
-            map.put(nums[i], i);
-        }
-        return new int[] {};
-    }
-}`}
-                  </pre>
-                </div>
-
-                {/* Run Tests Button */}
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-2">
-                    {testsPassed && (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-                        <Check className="w-4 h-4" />
-                        All 3 Test Cases Passed!
-                      </span>
-                    )}
-                  </div>
-
+                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => {
-                      setIsTestRunning(true);
-                      setTimeout(() => {
-                        setIsTestRunning(false);
-                        setTestsPassed(true);
-                        toast.success('Solution executed: Runtime 1ms (Beats 99.4% in Java)');
-                      }, 700);
+                      setProblemSubmitted(true);
+                      handleSyncProgress(true);
+                      toast.success('Solution submitted! Comparing with model answer.');
                     }}
-                    className="px-5 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold transition-all shadow-md cursor-pointer"
                   >
-                    <Terminal className="w-3.5 h-3.5" />
-                    <span>{isTestRunning ? 'Evaluating...' : 'Run Test Cases'}</span>
+                    Submit & Evaluate
                   </button>
                 </div>
+
+                {problemSubmitted && lesson.problemData?.modelAnswer && (
+                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs space-y-2 animate-in fade-in">
+                    <span className="font-bold text-emerald-500 uppercase tracking-wider">
+                      Academy Model Answer & Key Points:
+                    </span>
+                    <p className="text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
+                      {lesson.problemData.modelAnswer}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* VIEW 4: DOCUMENTATION / NOTES */}
-          {currentLesson.type === 'document' && (
-            <div className="flex-1 max-w-4xl mx-auto w-full py-4">
-              <div className="rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-6 shadow-xs transition-colors">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#141e32] pb-4 mb-5">
+          {/* VIEW 4: Document / Study Guide */}
+          {(lesson.type === 'document' || lesson.type === 'resource') && (
+            <div className="flex-1 max-w-4xl mx-auto w-full py-4 space-y-5">
+              <div className="rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#141e32] p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#141e32] pb-4">
                   <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-[#c19b48] dark:text-[#e8cf8d]" />
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">{currentLesson.title} Guide</h2>
+                    <FileText className="w-5 h-5 text-[#c19b48]" />
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                      {lesson.title}
+                    </h2>
                   </div>
                   <button
                     type="button"
-                    onClick={() => toast.success('Guide bookmarked!')}
-                    className="text-xs text-[#c19b48] dark:text-[#e8cf8d] hover:underline cursor-pointer"
+                    onClick={handleToggleBookmark}
+                    className="text-xs text-[#c19b48] hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    Bookmark Notes
+                    <Bookmark className="w-3.5 h-3.5" />
+                    <span>{lesson.isBookmarked ? 'Bookmarked' : 'Bookmark Notes'}</span>
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  {currentLesson.documentContent?.map((step, idx) => (
-                    <div key={idx} className="p-4 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] flex items-start gap-3">
-                      <span className="w-6 h-6 rounded-full bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] border border-[#c19b48]/30 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                {/* Document Steps */}
+                <div className="space-y-3.5">
+                  {lesson.documentContent?.map((step, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] flex items-start gap-3"
+                    >
+                      <span className="w-6 h-6 rounded-full bg-[#c19b48]/15 text-[#c19b48] border border-[#c19b48]/30 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                         {idx + 1}
                       </span>
-                      <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{step}</p>
+                      <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {step}
+                      </p>
                     </div>
                   ))}
+                </div>
+
+                {/* Mark as Completed */}
+                <div className="pt-4 border-t border-slate-200 dark:border-[#141e32] flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleSyncProgress(true)}
+                    className="px-5 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Mark as Read & Completed</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -745,7 +1387,7 @@ export const LecturePlayerPage: React.FC = () => {
 
           {/* Lesson Counter Badge */}
           <div className="px-4 py-1 rounded-md bg-slate-100 dark:bg-[#0e1626] border border-slate-200 dark:border-[#18243c] text-xs font-medium text-slate-700 dark:text-slate-300 select-none">
-            Lesson {activeIndex + 1}/{moduleLessons.length}
+            Lesson {activeIndex + 1} / {moduleLessons.length}
           </div>
 
           {/* Next Lesson Button */}
@@ -761,7 +1403,7 @@ export const LecturePlayerPage: React.FC = () => {
         </div>
       </footer>
 
-      {/* Doubt Modal */}
+      {/* Ask a Doubt Modal */}
       {isDoubtModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0b101c] border border-slate-200 dark:border-[#1a2842] shadow-2xl p-5 text-slate-900 dark:text-slate-100 animate-in fade-in zoom-in duration-200">
@@ -782,11 +1424,33 @@ export const LecturePlayerPage: React.FC = () => {
             <form onSubmit={handleDoubtSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Lesson Reference
+                  Lesson Reference & Timestamp
                 </label>
-                <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] p-2.5 rounded-xl">
-                  {currentLesson.title}
+                <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] p-2.5 rounded-xl flex items-center justify-between">
+                  <span className="truncate">{lesson.title}</span>
+                  <span className="font-mono text-[#c19b48] font-bold shrink-0">
+                    {formatTime(currentTime)}
+                  </span>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Doubt Category
+                </label>
+                <CustomSelect
+                  options={[
+                    { value: 'Bare Act Interpretation', label: 'Bare Act Interpretation' },
+                    { value: 'Mains Answer Drafting', label: 'Mains Answer Drafting' },
+                    { value: 'Case Law & Precedent', label: 'Case Law & Precedent' },
+                    { value: 'Procedural Practice', label: 'Procedural Practice' },
+                    { value: 'General Legal Doubt', label: 'General Legal Doubt' },
+                  ]}
+                  value={doubtCategory}
+                  onChange={(val) => setDoubtCategory(val)}
+                  placeholder="Select Category"
+                  sheetTitle="Doubt Category"
+                />
               </div>
 
               <div>
@@ -797,7 +1461,7 @@ export const LecturePlayerPage: React.FC = () => {
                   rows={4}
                   value={doubtText}
                   onChange={(e) => setDoubtText(e.target.value)}
-                  placeholder="E.g., I ran into a PATH variable error when typing javac in powershell..."
+                  placeholder="Explain your confusion or question on this lecture's provisions..."
                   className="w-full rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-[#141e32] p-3 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#c19b48] transition-colors resize-none"
                   required
                 />
@@ -813,10 +1477,15 @@ export const LecturePlayerPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-xs font-semibold text-[#061120] flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  disabled={isSubmittingDoubt}
+                  className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-xs font-semibold text-[#061120] flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send Doubt</span>
+                  {isSubmittingDoubt ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
+                  <span>Submit Doubt Query</span>
                 </button>
               </div>
             </form>

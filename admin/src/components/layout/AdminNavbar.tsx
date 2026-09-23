@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   PanelLeft,
@@ -10,7 +10,6 @@ import {
   FileCheck,
   UserPlus,
   BellRing,
-  Award,
   ChevronDown,
 } from 'lucide-react';
 import { AdminSearchDialog } from './AdminSearchDialog';
@@ -33,6 +32,47 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  // Refs for outside-click detection
+  const quickActionRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (quickActionRef.current && !quickActionRef.current.contains(target)) {
+        setIsQuickActionOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(target)) {
+        setIsNotificationOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsQuickActionOpen(false);
+        setIsNotificationOpen(false);
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isQuickActionOpen || isNotificationOpen || isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isQuickActionOpen, isNotificationOpen, isUserMenuOpen]);
 
   // Dynamic breadcrumb text generator
   const getBreadcrumb = () => {
@@ -57,7 +97,6 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
     if (path.includes('tests/bank')) return 'Bare Act MCQ Question Bank';
     if (path.includes('tests/rankings')) return 'All-India Rank Computation';
     if (path.includes('tests')) return 'Prelims Test Series Builder';
-    if (path.includes('interviews')) return 'Mock Interview Board';
     if (path.includes('bare-acts')) return 'Bare Act Notes & Charts';
     if (path.includes('judgments')) return 'Landmark Judgments CMS';
     if (path.includes('pyqs')) return 'Solved PYQ Archive';
@@ -68,6 +107,7 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
     if (path.includes('fees')) return 'Fee Installments & Receipts';
     if (path.includes('notices')) return 'Notice Board Broadcasts';
     if (path.includes('staff')) return 'Staff & Role Management';
+    if (path.includes('settings')) return 'System Settings & Governance';
     return 'Chamber Administration';
   };
 
@@ -157,7 +197,7 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
           </button>
 
           {/* Quick Action Dropdown */}
-          <div className="relative">
+          <div ref={quickActionRef} className="relative">
             <button
               type="button"
               onClick={() => {
@@ -201,19 +241,12 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
                   <BellRing className="w-4 h-4 text-[#60A5FA]" />
                   <span>Broadcast Circular</span>
                 </button>
-                <button
-                  onClick={() => navigate('/interviews')}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-[#F7F3E6] hover:bg-[#2F2F2F] transition-colors text-left cursor-pointer"
-                >
-                  <Award className="w-4 h-4 text-[#C19B48]" />
-                  <span>Book Interview Slot</span>
-                </button>
               </div>
             )}
           </div>
 
           {/* Notifications Dropdown */}
-          <div className="relative">
+          <div ref={notificationRef} className="relative">
             <button
               type="button"
               onClick={() => {
@@ -312,7 +345,7 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
           </div>
 
           {/* User Profile Menu */}
-          <div className="relative">
+          <div ref={userMenuRef} className="relative">
             <button
               type="button"
               onClick={() => {

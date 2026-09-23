@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
@@ -7,8 +7,10 @@ import {
   X,
   ShieldCheck,
   User,
+  ShieldAlert,
 } from 'lucide-react';
 import { adminSidebarItems, type AdminNavMainItem } from '../../navigation/admin-sidebar-items';
+import { useAdminAuthStore } from '../../store/useAdminAuthStore';
 import { cn } from '../../utils/cn';
 import { toast } from 'react-hot-toast';
 
@@ -26,7 +28,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Submenu open states (defaults to leads & evaluation expanded for quick operational access)
+  const admin = useAdminAuthStore((state) => state.admin);
+  const hasPermission = useAdminAuthStore((state) => state.hasPermission);
+  const logout = useAdminAuthStore((state) => state.logout);
+
+  // Submenu open states
   const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
     leads: false,
     courses: false,
@@ -56,27 +62,33 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     return false;
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('rla_admin_session');
+  const handleLogout = async () => {
+    await logout();
     toast('Signed out of Chamber Administration', { icon: '👋' });
     navigate('/login');
   };
 
-  // Get active admin user from storage
-  const [adminUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem('rla_admin_session');
-      if (raw) return JSON.parse(raw);
-    } catch {
-      // fallback
-    }
-    return {
-      name: 'Adv. Rajinder Sir',
-      email: 'rajinder@rajinderlawacademy.com',
-      role: 'director',
-      title: 'Director & Academic Dean',
-    };
-  });
+  // Dynamically filter sidebar items by current admin's permissions
+  const visibleGroups = useMemo(() => {
+    return adminSidebarItems
+      .map((group) => {
+        const visibleItems = group.items
+          .filter((item) => hasPermission(item.permission))
+          .map((item) => {
+            if (!item.subItems) return item;
+            const visibleSubs = item.subItems.filter((sub) => hasPermission(sub.permission));
+            return {
+              ...item,
+              subItems: visibleSubs,
+            };
+          });
+        return {
+          ...group,
+          items: visibleItems,
+        };
+      })
+      .filter((group) => group.items.length > 0);
+  }, [hasPermission]);
 
   return (
     <>
@@ -129,7 +141,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             {/* Mobile Close Button */}
             <button
               onClick={onCloseMobile}
-              className="md:hidden p-1.5 rounded-lg text-[#A8A294] hover:text-[#F7F3E6] hover:bg-[#2F2F2F] shrink-0"
+              className="md:hidden p-1.5 rounded-lg text-[#A8A294] hover:text-[#F7F3E6] hover:bg-[#2F2F2F] shrink-0 cursor-pointer"
               aria-label="Close menu"
             >
               <X className="w-5 h-5" />
@@ -137,9 +149,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
         </div>
 
-        {/* 2. Middle: Scrollable Navigation Groups */}
+        {/* 2. Middle: Scrollable Dynamic Navigation Groups */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar px-3 py-3 space-y-4">
-          {adminSidebarItems.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.id} className="space-y-1">
               {group.label && (
                 <h4
@@ -305,11 +317,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 )}
               >
                 <div className="text-xs font-semibold text-[#F7F3E6] truncate">
-                  {adminUser.name}
+                  {admin?.name || 'Adv. Rajinder Sir'}
                 </div>
                 <div className="text-[10px] text-[#A8A294] flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-[#C19B48]" />
-                  <span className="capitalize">{adminUser.role}</span>
+                  {admin?.isSuperAdmin ? (
+                    <ShieldAlert className="w-3 h-3 text-[#C19B48]" />
+                  ) : (
+                    <ShieldCheck className="w-3 h-3 text-[#C19B48]" />
+                  )}
+                  <span className="truncate font-medium text-[#C19B48]">
+                    {admin?.isSuperAdmin
+                      ? 'Super Admin'
+                      : admin?.permissionTier || admin?.roleName || 'Staff'}
+                  </span>
                 </div>
               </div>
             </div>

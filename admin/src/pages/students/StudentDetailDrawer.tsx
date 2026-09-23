@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { StudentRecord } from '../../types/student-directory';
 import { VideoProgressBar } from '../../components/students/VideoProgressBar';
+import { adminStudentApi } from '../../lib/adminStudentApi';
 import { toast } from 'react-hot-toast';
 
 interface StudentDetailDrawerProps {
@@ -38,15 +39,17 @@ export const StudentDetailDrawer: React.FC<StudentDetailDrawerProps> = ({
 
   if (!isOpen || !student) return null;
 
+  const videoLogs = student.videoLogs || [];
+
   // Extract distinct subjects from student's video logs
   const subjects = useMemo(() => {
-    const list = Array.from(new Set(student.videoLogs.map((v) => v.subject)));
+    const list = Array.from(new Set(videoLogs.map((v) => v.subject)));
     return ['ALL', ...list];
-  }, [student]);
+  }, [videoLogs]);
 
   // Filter video logs
   const filteredVideos = useMemo(() => {
-    return student.videoLogs.filter((v) => {
+    return videoLogs.filter((v) => {
       const matchesSearch =
         v.lectureTitle.toLowerCase().includes(videoSearch.toLowerCase()) ||
         v.subject.toLowerCase().includes(videoSearch.toLowerCase()) ||
@@ -54,25 +57,32 @@ export const StudentDetailDrawer: React.FC<StudentDetailDrawerProps> = ({
       const matchesSubject = selectedSubject === 'ALL' || v.subject === selectedSubject;
       return matchesSearch && matchesSubject;
     });
-  }, [student, videoSearch, selectedSubject]);
+  }, [videoLogs, videoSearch, selectedSubject]);
 
   const handleSendWhatsAppAlert = () => {
     toast.success(
       <div>
         <div className="font-semibold text-[#F7F3E6]">WhatsApp Video Catchup Notification Sent</div>
-        <div className="text-xs text-[#A8A294] mt-0.5">Targeted WhatsApp message sent to {student.name} ({student.phone}) highlighting pending lectures.</div>
+        <div className="text-xs text-[#A8A294] mt-0.5">
+          Targeted WhatsApp message sent to {student.name} ({student.phone}) highlighting pending lectures.
+        </div>
       </div>
     );
   };
 
-  const handleRevokeDevice = () => {
-    toast(
-      <div>
-        <div className="font-semibold text-[#F7F3E6]">Device Sessions Reset for {student.name}</div>
-        <div className="text-xs text-[#A8A294] mt-0.5">Logged out of all active web and mobile app instances.</div>
-      </div>,
-      { icon: '🔄' }
-    );
+  const handleRevokeDevice = async () => {
+    try {
+      await adminStudentApi.revokeStudentSessions(student.id);
+      toast.success(
+        <div>
+          <div className="font-semibold text-[#F7F3E6]">Device Sessions Reset for {student.name}</div>
+          <div className="text-xs text-[#A8A294] mt-0.5">Logged out of all active web and mobile app instances.</div>
+        </div>
+      );
+    } catch (err) {
+      console.error('Failed to revoke sessions:', err);
+      toast.error('Failed to revoke student sessions');
+    }
   };
 
   return (

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import type { PyqPaper } from '../../types/pyq.types';
 import { downloadPyqPdf } from '../../services/pyq.service';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface PyqPaperCardProps {
   paper: PyqPaper;

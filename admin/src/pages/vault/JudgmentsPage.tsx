@@ -274,7 +274,9 @@ export const JudgmentsPage: React.FC = () => {
             >
               <option value="all">All Statuses</option>
               <option value="published">Published Only</option>
+              <option value="scheduled">Scheduled Only</option>
               <option value="draft">Drafts Only</option>
+              <option value="archived">Archived Only</option>
             </select>
           </div>
 

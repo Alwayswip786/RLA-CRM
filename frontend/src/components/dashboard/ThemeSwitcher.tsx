@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sun, Moon, Monitor, Check } from 'lucide-react';
 import { useThemeStore, type ThemeMode } from '../../store/useThemeStore';
 import { cn } from '../../utils/cn';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export const ThemeSwitcher: React.FC = () => {
   const { theme, resolvedTheme, toggleThemeWithTransition, setThemeWithTransition } = useThemeStore();
@@ -46,7 +46,7 @@ export const ThemeSwitcher: React.FC = () => {
         title={`Current: ${theme.toUpperCase()} (Click to toggle with circular ripple)`}
         aria-label="Toggle theme"
         className={cn(
-          'p-2 rounded-xl border transition-all cursor-pointer relative group flex items-center justify-center',
+          'p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer relative group flex items-center justify-center shrink-0',
           resolvedTheme === 'dark'
             ? 'bg-[#061120] border-[#143564] text-[#e8cf8d] hover:border-[#c19b48]/60 hover:bg-[#0a1c36]'
             : 'bg-slate-100 border-slate-300 text-amber-600 hover:border-amber-400 hover:bg-slate-200'

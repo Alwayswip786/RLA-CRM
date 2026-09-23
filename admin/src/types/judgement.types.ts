@@ -14,6 +14,8 @@ export type JudgementImportance =
   | 'Recent / Overruling'
   | 'Standard';
 
+export type JudgementStatus = 'draft' | 'scheduled' | 'published' | 'archived';
+
 export interface IPdfFileMetadata {
   filename: string;
   originalName: string;
@@ -24,6 +26,29 @@ export interface IPdfFileMetadata {
   pageCount?: number;
 }
 
+export interface IKeyHolding {
+  title: string;
+  text: string;
+}
+
+export interface ILegalProvisionRef {
+  label: string;
+  actOrCode?: string;
+  badgeColor?: 'amber' | 'blue' | 'emerald' | 'purple' | 'slate';
+}
+
+export interface IRelatedCaseRef {
+  title: string;
+  citation: string;
+  relationship?: 'Affirmed' | 'Overruled' | 'Distinguished' | 'Followed';
+}
+
+export interface IExamRelevance {
+  prelimsFactoids: string[];
+  mainsPerspective: string;
+  pyqReferences: string[];
+}
+
 export interface JudgementDigest {
   _id: string;
   id?: string;
@@ -31,18 +56,28 @@ export interface JudgementDigest {
   citation: string;
   court: CourtCategory;
   bench: string;
+  benchStrength?: string;
   judges: string[];
   dateOfJudgement: string;
   year: number;
   subject: string;
+  category?: string;
   legalProvisions: string[];
+  provisions?: ILegalProvisionRef[];
   summary: string;
   ratioDecidendi: string[];
+  keyHoldings?: IKeyHolding[];
+  fullAnalysis?: string;
+  sourceReference?: string;
   mainsUtility?: string;
   overruledPrecedents?: string;
   tags: string[];
   importance: JudgementImportance;
-  pdfFile: IPdfFileMetadata;
+  status?: JudgementStatus;
+  dailyDateIST?: string;
+  isDailyFeatured?: boolean;
+  priority?: number;
+  pdfFile?: IPdfFileMetadata;
   thumbnail?: {
     filename: string;
     originalName: string;
@@ -54,7 +89,15 @@ export interface JudgementDigest {
   publishedAt?: string;
   downloadCount: number;
   viewCount: number;
+  bookmarkCount?: number;
   isFeatured: boolean;
+  relatedCases?: IRelatedCaseRef[];
+  examRelevance?: IExamRelevance;
+  overruledStatus?: {
+    status: string;
+    byCase?: string;
+    byYear?: number;
+  };
   uploadedBy?: {
     _id: string;
     name: string;
@@ -78,7 +121,7 @@ export interface JudgementAdminFilterParams {
   year?: string;
   subject?: string;
   importance?: string;
-  status?: 'all' | 'published' | 'draft';
+  status?: 'all' | 'published' | 'draft' | 'scheduled' | 'archived';
   search?: string;
   sort?: 'newest' | 'date_desc' | 'date_asc' | 'year_desc' | 'popular' | 'title_asc';
   page?: number;
@@ -100,17 +143,27 @@ export interface CreateJudgementPayload {
   citation: string;
   court: string;
   bench?: string;
+  benchStrength?: string;
   judges?: string[];
   dateOfJudgement: string;
   year?: number;
   subject: string;
+  category?: string;
   legalProvisions?: string[];
+  provisions?: ILegalProvisionRef[];
   summary: string;
   ratioDecidendi?: string[];
+  keyHoldings?: IKeyHolding[];
+  fullAnalysis?: string;
+  sourceReference?: string;
   mainsUtility?: string;
   overruledPrecedents?: string;
   tags?: string[];
   importance?: JudgementImportance;
+  status?: JudgementStatus;
+  dailyDateIST?: string;
+  isDailyFeatured?: boolean;
+  priority?: number;
   isPublished?: boolean;
   isFeatured?: boolean;
 }
@@ -120,16 +173,27 @@ export interface UpdateJudgementPayload {
   citation?: string;
   court?: string;
   bench?: string;
+  benchStrength?: string;
   judges?: string[];
   dateOfJudgement?: string;
   year?: number;
   subject?: string;
+  category?: string;
   legalProvisions?: string[];
+  provisions?: ILegalProvisionRef[];
   summary?: string;
   ratioDecidendi?: string[];
+  keyHoldings?: IKeyHolding[];
+  fullAnalysis?: string;
+  sourceReference?: string;
   mainsUtility?: string;
   overruledPrecedents?: string;
   tags?: string[];
   importance?: JudgementImportance;
+  status?: JudgementStatus;
+  dailyDateIST?: string;
+  isDailyFeatured?: boolean;
+  priority?: number;
+  isPublished?: boolean;
   isFeatured?: boolean;
 }

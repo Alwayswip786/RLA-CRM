@@ -1,22 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
   ChevronRight,
   LogOut,
   User,
-  MessageSquare,
-  Sparkles,
   X,
-  ExternalLink,
-  PhoneCall,
 } from 'lucide-react';
 import { studentSidebarItems, type NavMainItem } from '../../navigation/student-sidebar-items';
 import { StudentIdModal } from './StudentIdModal';
 import { cn } from '../../utils/cn';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNoticeStore } from '../../store/useNoticeStore';
+import { useIsDesktop } from '../../hooks/use-responsive';
 
 interface StudentSidebarProps {
   isCollapsed: boolean;
@@ -29,6 +26,11 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
 }) => {
+  const isDesktop = useIsDesktop(1024);
+  // On mobile & tablet portrait (< 1024px) or whenever the slide-over drawer is open,
+  // the sidebar is NEVER collapsed. isCollapsed only collapses the desktop sticky rail.
+  const isEffectiveCollapsed = isDesktop && isCollapsed && !isMobileOpen;
+
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -36,11 +38,109 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   const displayName = user?.name || 'Advocate Aspirant';
   const displayRoll = user?.rollNo || '';
 
+  const asideRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerButtonRef = useRef<HTMLElement | null>(null);
+
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>({
     'prelims-tests': true,
     'mains-writing': false,
   });
+
+  // 1. Auto-close mobile drawer when switching to desktop
+  useEffect(() => {
+    if (isDesktop && isMobileOpen) {
+      onCloseMobile();
+    }
+  }, [isDesktop, isMobileOpen, onCloseMobile]);
+
+  // 2. Auto-close mobile drawer on route change (including back/forward navigation)
+  useEffect(() => {
+    if (isMobileOpen) {
+      onCloseMobile();
+    }
+  }, [location.pathname, location.search]);
+
+  // 3. Body Scroll Lock on Mobile/Tablet when open
+  useEffect(() => {
+    if (!isMobileOpen || isDesktop) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [isMobileOpen, isDesktop]);
+
+  // 4. Escape Key Listener for Mobile/Tablet Drawer
+  useEffect(() => {
+    if (!isMobileOpen || isDesktop) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseMobile();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileOpen, isDesktop, onCloseMobile]);
+
+  // 5. Focus Management & Trapping inside mobile drawer
+  useEffect(() => {
+    if (isMobileOpen && !isDesktop) {
+      triggerButtonRef.current = document.activeElement as HTMLElement;
+
+      // Focus close button on open
+      requestAnimationFrame(() => {
+        closeButtonRef.current?.focus();
+      });
+
+      // Trap Tab key cycles inside the drawer
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab' || !asideRef.current) return;
+
+        const focusableElements = asideRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      };
+
+      window.addEventListener('keydown', handleTabKey);
+      return () => {
+        window.removeEventListener('keydown', handleTabKey);
+        // Restore focus to trigger when closing
+        if (triggerButtonRef.current && typeof triggerButtonRef.current.focus === 'function') {
+          triggerButtonRef.current.focus();
+        }
+      };
+    }
+  }, [isMobileOpen, isDesktop]);
 
   const {
     unreadCount: noticeUnreadCount,
@@ -73,38 +173,48 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
     navigate('/login');
   };
 
-  const handleBookStrategyCall = () => {
-    toast.success('Strategy Call Requested with Rajinder Sir', {
-      description: 'Your academic mentor will confirm your 1-on-1 slot via WhatsApp.',
-      duration: 4000,
-    });
-  };
-
   return (
     <>
       {/* Digital Student ID Modal */}
       <StudentIdModal isOpen={isIdModalOpen} onClose={() => setIsIdModalOpen(false)} />
 
-      {/* Mobile Backdrop */}
-      {isMobileOpen && (
-        <div
-          onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-black/75 backdrop-blur-xs md:hidden"
-        />
-      )}
+      {/* Mobile & Tablet Portrait Backdrop with Smooth Fade-in/out */}
+      <div
+        onClick={onCloseMobile}
+        aria-hidden="true"
+        className={cn(
+          'fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden transition-opacity duration-300 ease-out motion-reduce:transition-none',
+          isMobileOpen
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none'
+        )}
+      />
 
       {/* Sidebar Container */}
       <aside
+        ref={asideRef}
+        id="student-sidebar-drawer"
+        role={!isDesktop ? 'dialog' : undefined}
+        aria-modal={!isDesktop && isMobileOpen ? 'true' : undefined}
+        aria-label={!isDesktop ? 'Navigation Sidebar' : undefined}
         className={cn(
-          'fixed md:sticky top-0 z-40 h-screen flex flex-col justify-between bg-[#F7F3E6] dark:bg-[#061120] border-r border-[#ded7c4] dark:border-[#143564]/70 transition-[width] duration-300 ease-in-out select-none overflow-x-hidden',
+          'fixed inset-y-0 left-0 z-50 h-[100dvh] flex flex-col justify-between bg-[#F7F3E6] dark:bg-[#061120] border-r border-[#ded7c4] dark:border-[#143564]/70 select-none overflow-x-hidden',
+          // Desktop docking in app-shell flex row
+          'lg:static lg:h-full lg:shrink-0 lg:z-30',
+          // GPU-accelerated slide transition on mobile, width transition on desktop
+          'transition-transform duration-300 ease-out will-change-transform motion-reduce:transition-none motion-reduce:transform-none',
+          'lg:transition-[width] lg:duration-300 lg:ease-in-out',
           // Desktop width
-          isCollapsed ? 'md:w-18' : 'md:w-76',
-          // Mobile responsive slide-over
-          isMobileOpen ? 'left-0 w-76 shadow-2xl' : '-left-76 md:left-0'
+          isEffectiveCollapsed ? 'lg:w-18' : 'lg:w-76',
+          // Mobile & Tablet Portrait width and slide position
+          'w-[82vw] max-w-72 sm:max-w-76',
+          isMobileOpen
+            ? 'translate-x-0 shadow-2xl'
+            : '-translate-x-full lg:translate-x-0 lg:shadow-none'
         )}
       >
         {/* 1. Header: Brand Logo & Title */}
-        <div className="shrink-0 border-b border-slate-200 dark:border-[#143564]/60 overflow-hidden">
+        <div className="shrink-0 border-b border-slate-200 dark:border-[#143564]/60 overflow-hidden pt-[env(safe-area-inset-top,0px)]">
           <div className="h-16 flex items-center justify-between px-4">
             <Link
               to="/dashboard"
@@ -120,7 +230,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
               <div
                 className={cn(
                   'flex flex-col min-w-0 pl-2 transition-all duration-200 whitespace-nowrap overflow-hidden',
-                  isCollapsed ? 'opacity-0 w-0 pointer-events-none' : 'opacity-100 w-auto'
+                  isEffectiveCollapsed ? 'opacity-0 w-0 pointer-events-none' : 'opacity-100 w-auto'
                 )}
               >
                 <span className="font-serif text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate leading-none">
@@ -132,11 +242,12 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
               </div>
             </Link>
 
-            {/* Close button for Mobile Drawer */}
+            {/* Close button for Mobile / Tablet Drawer */}
             <button
+              ref={closeButtonRef}
               onClick={onCloseMobile}
-              className="md:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 shrink-0"
-              aria-label="Close menu"
+              className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/10 shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer transition-colors"
+              aria-label="Close navigation menu"
             >
               <X className="w-5 h-5" />
             </button>
@@ -144,14 +255,14 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
         </div>
 
         {/* 2. Middle: Navigation Links (Scrollable) */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar px-4 py-3 space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar px-4 py-3 space-y-4 overscroll-contain">
           {studentSidebarItems.map((group) => (
             <div key={group.id} className="space-y-1">
               {group.label && (
                 <h4
                   className={cn(
                     'px-2.5 text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider transition-all duration-200 overflow-hidden whitespace-nowrap',
-                    isCollapsed ? 'opacity-0 h-0 my-0 pointer-events-none' : 'opacity-100 mb-1.5'
+                    isEffectiveCollapsed ? 'opacity-0 h-0 my-0 pointer-events-none' : 'opacity-100 mb-1.5'
                   )}
                 >
                   {group.label}
@@ -210,7 +321,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                             setIsIdModalOpen(true);
                             onCloseMobile();
                           }}
-                          title={isCollapsed ? item.title : undefined}
+                          title={isEffectiveCollapsed ? item.title : undefined}
                           className={cn(
                             'w-full h-10 flex items-center rounded-xl text-xs font-medium transition-colors group relative text-left cursor-pointer overflow-hidden border border-transparent shrink-0',
                             'text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
@@ -222,7 +333,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           <div
                             className={cn(
                               'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
-                              isCollapsed
+                              isEffectiveCollapsed
                                 ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none'
                                 : 'opacity-100 w-auto pr-2.5 translate-x-0'
                             )}
@@ -248,7 +359,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         key={item.id}
                         to={item.url || '#'}
                         onClick={() => onCloseMobile()}
-                        title={isCollapsed ? item.title : undefined}
+                        title={isEffectiveCollapsed ? item.title : undefined}
                         className={cn(
                           'w-full h-10 flex items-center rounded-xl text-xs font-medium transition-colors group relative overflow-hidden shrink-0',
                           active
@@ -263,14 +374,14 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                               active ? 'text-[#061120]' : 'text-[#c19b48] group-hover:scale-110 transition-transform'
                             )}
                           />
-                          {hasUnreadNotices && isCollapsed && (
+                          {hasUnreadNotices && isEffectiveCollapsed && (
                             <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-[#F7F3E6] dark:ring-[#061120] animate-pulse" />
                           )}
                         </div>
                         <div
                           className={cn(
                             'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
-                            isCollapsed
+                            isEffectiveCollapsed
                               ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none'
                               : 'opacity-100 w-auto pr-2.5 translate-x-0'
                           )}
@@ -297,7 +408,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleSubMenu(item.id)}
-                        title={isCollapsed ? item.title : undefined}
+                        title={isEffectiveCollapsed ? item.title : undefined}
                         className={cn(
                           'w-full h-10 flex items-center rounded-xl text-xs font-medium transition-colors group text-left cursor-pointer overflow-hidden shrink-0',
                           active
@@ -311,7 +422,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         <div
                           className={cn(
                             'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
-                            isCollapsed
+                            isEffectiveCollapsed
                               ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none'
                               : 'opacity-100 w-auto pr-2.5 translate-x-0'
                           )}
@@ -342,7 +453,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         <div
                           className={cn(
                             'pl-6 pr-1 space-y-1 border-l border-slate-300 dark:border-[#143564]/50 ml-5 transition-all duration-200 overflow-hidden',
-                            !isCollapsed && isParentOpen
+                            !isEffectiveCollapsed && isParentOpen
                               ? 'max-h-60 opacity-100 my-1 py-1'
                               : 'max-h-0 opacity-0 my-0 py-0 pointer-events-none'
                           )}
@@ -375,80 +486,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           ))}
         </div>
 
-        {/* 3. Footer Area: Progress Bar, 1-on-1 CTA, Support Card & Student Profile */}
-        <div className="p-4 border-t border-slate-200 dark:border-[#143564]/60 space-y-2 shrink-0 bg-slate-100/60 dark:bg-[#040b14]/50 overflow-hidden">
-          {/* Interactive Widget B: Batch Syllabus Progress Bar */}
-          <div
-            className={cn(
-              'transition-all duration-300 ease-in-out overflow-hidden',
-              isCollapsed ? 'max-h-0 opacity-0 pointer-events-none my-0' : 'max-h-24 opacity-100'
-            )}
-          >
-            <div className="p-2.5 rounded-xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-1.5 shadow-2xs">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-800 dark:text-slate-200">
-                <span>Batch Syllabus Progress</span>
-                <span className="text-[#c19b48] font-mono font-bold">64%</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-[#061120] rounded-full h-1.5 overflow-hidden border border-slate-200 dark:border-[#143564]">
-                <div
-                  className="h-full bg-gradient-to-r from-[#c19b48] to-[#e8cf8d] rounded-full transition-all duration-500"
-                  style={{ width: '64%' }}
-                />
-              </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                7 / 11 Major & Minor Bare Acts Mastered
-              </p>
-            </div>
-          </div>
-
-          {/* Interactive Widget C: Fast 1-on-1 Faculty Booking CTA */}
-          <button
-            type="button"
-            onClick={handleBookStrategyCall}
-            title={isCollapsed ? 'Book 1-on-1 Call with Rajinder Sir' : undefined}
-            className="w-full h-10 rounded-xl bg-gradient-to-r from-[#0a1c36] to-[#143564] dark:from-[#0e274b] dark:to-[#1c4988] hover:from-[#143564] hover:to-[#2560b0] text-white text-xs font-semibold border border-[#c19b48]/40 shadow-xs flex items-center transition-all overflow-hidden cursor-pointer group shrink-0"
-          >
-            <div className="w-10 h-10 flex items-center justify-center shrink-0">
-              <PhoneCall className="w-4 h-4 text-[#e8cf8d] group-hover:scale-110 transition-transform" />
-            </div>
-            <span
-              className={cn(
-                'truncate transition-all duration-200 whitespace-nowrap overflow-hidden',
-                isCollapsed ? 'opacity-0 w-0 pr-0 pointer-events-none' : 'opacity-100 w-auto pr-2.5'
-              )}
-            >
-              Book 1-on-1 Call with Rajinder Sir
-            </span>
-          </button>
-
-          {/* WhatsApp Support Mini-Card */}
-          <div
-            className={cn(
-              'transition-all duration-300 ease-in-out overflow-hidden',
-              isCollapsed ? 'max-h-0 opacity-0 pointer-events-none my-0' : 'max-h-28 opacity-100'
-            )}
-          >
-            <div className="p-2.5 rounded-xl bg-amber-50/80 dark:bg-gradient-to-r dark:from-[#0a1c36] dark:to-[#0e274b] border border-amber-200/80 dark:border-[#c19b48]/30 shadow-xs">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Sparkles className="w-3 h-3 text-[#c19b48]" />
-                <span className="text-[11px] font-bold text-slate-900 dark:text-white">Batch Help Desk</span>
-              </div>
-              <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-snug mb-1.5">
-                Urgent lecture link or fee receipt query?
-              </p>
-              <a
-                href="https://wa.me/919876543210"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] text-[#c19b48] dark:text-[#e8cf8d] font-semibold hover:underline"
-              >
-                <MessageSquare className="w-3 h-3" />
-                <span>Chat with Coordinator</span>
-                <ExternalLink className="w-2.5 h-2.5 ml-0.5 opacity-70" />
-              </a>
-            </div>
-          </div>
-
+        {/* 3. Footer Area: Student Profile */}
+        <div className="p-4 border-t border-slate-200 dark:border-[#143564]/60 space-y-2 shrink-0 bg-slate-100/60 dark:bg-[#040b14]/50 overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* Student Profile Row */}
           <div className="flex items-center h-10 rounded-xl bg-white dark:bg-[#0a1c36]/60 border border-slate-200 dark:border-[#143564]/50 shadow-xs overflow-hidden w-full shrink-0">
             <div className="w-10 h-10 flex items-center justify-center shrink-0">
@@ -460,7 +499,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
             <div
               className={cn(
                 'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
-                isCollapsed ? 'opacity-0 w-0 pr-0 pointer-events-none' : 'opacity-100 w-auto pr-2'
+                isEffectiveCollapsed ? 'opacity-0 w-0 pr-0 pointer-events-none' : 'opacity-100 w-auto pr-2'
               )}
             >
               <div className="flex-1 min-w-0 pr-1">

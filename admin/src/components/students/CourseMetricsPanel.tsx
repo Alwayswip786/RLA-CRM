@@ -8,13 +8,14 @@ import {
   Layers,
   Sparkles,
 } from 'lucide-react';
-import type { CourseMetricSummary } from '../../types/student-directory';
+import type { CourseMetricSummary, AcademySummaryMetricsDto } from '../../types/student-directory';
 
 interface CourseMetricsPanelProps {
   metrics: CourseMetricSummary[];
   selectedCourseId: string;
   onSelectCourse: (courseId: string) => void;
   totalStudentsCount: number;
+  summaryMetrics?: AcademySummaryMetricsDto | null;
 }
 
 export const CourseMetricsPanel: React.FC<CourseMetricsPanelProps> = ({
@@ -22,21 +23,22 @@ export const CourseMetricsPanel: React.FC<CourseMetricsPanelProps> = ({
   selectedCourseId,
   onSelectCourse,
   totalStudentsCount,
+  summaryMetrics,
 }) => {
   const currentMetric = metrics.find((m) => m.courseId === selectedCourseId);
 
   // Compute aggregated stats for "ALL"
   const aggregatedStats = {
-    totalStudents: totalStudentsCount,
-    avgCompletionRate: Math.round(
+    totalStudents: summaryMetrics?.cohortEnrollment || totalStudentsCount,
+    avgCompletionRate: summaryMetrics?.cohortAvgProgress || Math.round(
       metrics.reduce((acc, m) => acc + m.avgCompletionRate * m.totalStudents, 0) /
         (totalStudentsCount || 1)
     ),
-    activeWatchersToday: metrics.reduce((acc, m) => acc + m.activeWatchersToday, 0),
-    totalLectures: metrics.reduce((acc, m) => acc + m.totalLecturesCount, 0),
-    totalHours: metrics.reduce((acc, m) => acc + m.totalHours, 0),
-    atRiskStudents: metrics.reduce((acc, m) => acc + m.atRiskStudentsCount, 0),
-    avgMainsDawRate: Math.round(
+    activeWatchersToday: summaryMetrics?.watchedLecturesToday || metrics.reduce((acc, m) => acc + m.activeWatchersToday, 0),
+    totalLectures: summaryMetrics?.totalLecturesCount || metrics.reduce((acc, m) => acc + m.totalLecturesCount, 0),
+    totalHours: summaryMetrics?.totalHours || metrics.reduce((acc, m) => acc + m.totalHours, 0),
+    atRiskStudents: summaryMetrics?.atRiskCount || metrics.reduce((acc, m) => acc + m.atRiskStudentsCount, 0),
+    avgMainsDawRate: summaryMetrics?.mainsDawRate || Math.round(
       metrics.reduce((acc, m) => acc + m.mainsDawSubmissionRate, 0) / (metrics.length || 1)
     ),
   };

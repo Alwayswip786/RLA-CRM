@@ -9,10 +9,12 @@ import {
   AlertCircle,
   Eye,
   Loader2,
+  Bookmark,
 } from 'lucide-react';
 import type { JudgementDigest } from '../../types/judgement.types';
 import { downloadJudgementPdf } from '../../services/judgement.service';
-import { toast } from 'sonner';
+import { useBookmarkStore } from '../../store/useBookmarkStore';
+import { toast } from '../../lib/toast';
 
 interface JudgementCardProps {
   judgement: JudgementDigest;
@@ -27,8 +29,33 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
 }) => {
   const [downloading, setDownloading] = useState(false);
   const [expandedRatio, setExpandedRatio] = useState(true);
+  const { isBookmarked, toggleBookmark } = useBookmarkStore();
+  const bookmarked = isBookmarked(judgement._id);
+
+  const handleToggleBookmark = async () => {
+    await toggleBookmark({
+      itemType: 'Judgment',
+      itemId: judgement._id,
+      title: judgement.title,
+      source: `${judgement.citation} | ${judgement.court}`,
+      subject: judgement.subject || 'Constitutional Law',
+      annotation: judgement.summary ? judgement.summary.slice(0, 160) + '...' : '',
+      tags: judgement.tags,
+      metadata: {
+        citation: judgement.citation,
+        court: judgement.court,
+        bench: judgement.bench,
+        year: judgement.year,
+        targetRoute: '/dashboard/judgements',
+      },
+    });
+  };
 
   const handleDownload = async () => {
+    if (!judgement.pdfFile) {
+      toast.info('No PDF document attached to this digest.');
+      return;
+    }
     try {
       setDownloading(true);
       await downloadJudgementPdf(judgement._id, judgement.pdfFile.originalName);
@@ -78,9 +105,24 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
             </span>
           </div>
 
-          <span className="font-mono text-xs font-bold text-[#c19b48] dark:text-[#e8cf8d] bg-[#c19b48]/10 px-2.5 py-0.5 rounded border border-[#c19b48]/20">
-            {judgement.citation}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-[#c19b48] dark:text-[#e8cf8d] bg-[#c19b48]/10 px-2.5 py-0.5 rounded border border-[#c19b48]/20">
+              {judgement.citation}
+            </span>
+
+            <button
+              type="button"
+              onClick={handleToggleBookmark}
+              title={bookmarked ? 'Remove from Starred Vault' : 'Save to Starred Vault'}
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                bookmarked
+                  ? 'bg-[#c19b48]/20 border-[#c19b48]/40 text-[#c19b48]'
+                  : 'bg-slate-50 dark:bg-[#061120] border-slate-200 dark:border-[#143564] text-slate-400 hover:text-[#c19b48]'
+              }`}
+            >
+              <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? 'fill-current' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Case Title */}
@@ -206,8 +248,12 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
             <Eye className="w-3 h-3 text-slate-400" />
             <span>{judgement.viewCount} views</span>
           </span>
-          <span>•</span>
-          <span className="font-mono text-slate-400">{judgement.pdfFile.sizeFormatted}</span>
+          {judgement.pdfFile?.sizeFormatted && (
+            <>
+              <span>•</span>
+              <span className="font-mono text-slate-400">{judgement.pdfFile.sizeFormatted}</span>
+            </>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -223,19 +269,21 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
           </button>
 
           {/* Download PDF */}
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={downloading}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#c19b48] hover:bg-[#d4ae58] text-[#061120] font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-          >
-            {downloading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Download className="w-3.5 h-3.5" />
-            )}
-            <span>{downloading ? 'Downloading...' : 'Download PDF'}</span>
-          </button>
+          {judgement.pdfFile && (
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={downloading}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#c19b48] hover:bg-[#d4ae58] text-[#061120] font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+            >
+              {downloading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              <span>{downloading ? 'Downloading...' : 'Download PDF'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

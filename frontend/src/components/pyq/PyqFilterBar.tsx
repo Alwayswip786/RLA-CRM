@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, X, RotateCcw } from 'lucide-react';
 import type { PyqFilterParams } from '../../types/pyq.types';
+import { CustomSelect, type SelectOption } from '../ui/CustomSelect';
 
 interface PyqFilterBarProps {
   filters: PyqFilterParams;
@@ -36,8 +37,26 @@ export const PyqFilterBar: React.FC<PyqFilterBarProps> = ({
     });
   };
 
+  const sortOptions: SelectOption[] = [
+    { value: 'year_desc', label: 'Latest Exam Year' },
+    { value: 'year_asc', label: 'Oldest Exam Year' },
+    { value: 'popular', label: 'Most Downloaded' },
+    { value: 'newest', label: 'Recently Uploaded' },
+    { value: 'title_asc', label: 'Title (A to Z)' },
+  ];
+
+  const examOptions: SelectOption[] = [
+    { value: 'all', label: 'All Judicial Exams' },
+    ...availableExams.map((exam) => ({ value: exam, label: exam })),
+  ];
+
+  const yearOptions: SelectOption[] = [
+    { value: 'all', label: 'All Years' },
+    ...availableYears.map((yr) => ({ value: String(yr), label: String(yr) })),
+  ];
+
   return (
-    <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs">
+    <div className="p-3.5 sm:p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs">
       {/* Top row: Search input and quick sort */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
         {/* Search */}
@@ -47,7 +66,7 @@ export const PyqFilterBar: React.FC<PyqFilterBarProps> = ({
             type="text"
             value={filters.search || ''}
             onChange={(e) => onChange({ ...filters, search: e.target.value, page: 1 })}
-            placeholder="Search by topic, bare act section, or exam name (e.g. Res Judicata, CPC, DJS 2023)..."
+            placeholder="Search by topic, bare act section, or exam name..."
             className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#c19b48] transition-colors"
           />
           {filters.search && (
@@ -61,55 +80,47 @@ export const PyqFilterBar: React.FC<PyqFilterBarProps> = ({
         </div>
 
         {/* Sort Dropdown */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-slate-400 hidden sm:inline">Sort:</span>
-          <select
+        <div className="w-full sm:w-48 shrink-0">
+          <CustomSelect
+            options={sortOptions}
             value={filters.sort || 'year_desc'}
-            onChange={(e) => onChange({ ...filters, sort: e.target.value as any, page: 1 })}
-            className="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[#c19b48] cursor-pointer"
-          >
-            <option value="year_desc">Latest Exam Year</option>
-            <option value="year_asc">Oldest Exam Year</option>
-            <option value="popular">Most Downloaded</option>
-            <option value="newest">Recently Uploaded</option>
-            <option value="title_asc">Title (A to Z)</option>
-          </select>
+            onChange={(val) => onChange({ ...filters, sort: val as any, page: 1 })}
+            placeholder="Sort PYQs"
+            sheetTitle="Sort Question Papers"
+          />
         </div>
       </div>
 
       {/* Bottom row: Faceted Selectors (State, Stage, Year) */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-[#143564]/50">
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           {/* Exam / State */}
-          <select
-            value={filters.exam || 'all'}
-            onChange={(e) => onChange({ ...filters, exam: e.target.value, page: 1 })}
-            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[#c19b48] cursor-pointer"
-          >
-            <option value="all">All Judicial Exams</option>
-            {availableExams.map((exam) => (
-              <option key={exam} value={exam}>
-                {exam}
-              </option>
-            ))}
-          </select>
+          <div className="w-full sm:w-48">
+            <CustomSelect
+              options={examOptions}
+              value={filters.exam || 'all'}
+              onChange={(val) => onChange({ ...filters, exam: val, page: 1 })}
+              placeholder="All Judicial Exams"
+              searchable={availableExams.length > 5}
+              sheetTitle="Select Judicial Exam / State"
+              sheetSubtitle="Filter past papers by state judiciary service"
+            />
+          </div>
 
           {/* Year */}
-          <select
-            value={filters.year || 'all'}
-            onChange={(e) => onChange({ ...filters, year: e.target.value, page: 1 })}
-            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[#c19b48] cursor-pointer"
-          >
-            <option value="all">All Years</option>
-            {availableYears.map((yr) => (
-              <option key={yr} value={String(yr)}>
-                {yr}
-              </option>
-            ))}
-          </select>
+          <div className="w-[calc(50%-0.375rem)] sm:w-32">
+            <CustomSelect
+              options={yearOptions}
+              value={filters.year || 'all'}
+              onChange={(val) => onChange({ ...filters, year: val, page: 1 })}
+              placeholder="All Years"
+              searchable={availableYears.length > 7}
+              sheetTitle="Select Exam Year"
+            />
+          </div>
 
           {/* Stage Pills */}
-          <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
+          <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] h-9">
             {(['all', 'Prelims', 'Mains'] as const).map((stage) => {
               const active = (filters.stage || 'all').toLowerCase() === stage.toLowerCase();
               return (
@@ -141,7 +152,7 @@ export const PyqFilterBar: React.FC<PyqFilterBarProps> = ({
         </div>
 
         {/* Results Counter */}
-        <span className="text-xs font-medium text-slate-400">
+        <span className="text-xs font-medium text-slate-400 ml-auto sm:ml-0">
           Showing <strong className="text-slate-800 dark:text-white">{totalResults}</strong> papers
         </span>
       </div>

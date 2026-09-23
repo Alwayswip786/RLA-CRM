@@ -91,3 +91,51 @@ export interface CourseMetricSummary {
   subjectBreakdown: CourseSubjectProgress[];
 }
 
+export interface AcademySummaryMetricsDto {
+  cohortEnrollment: number;
+  watchedLecturesToday: number;
+  cohortAvgProgress: number;
+  totalLecturesCount: number;
+  totalHours: number;
+  mainsDawRate: number;
+  evaluatedCopiesCount: number;
+  atRiskCount: number;
+  facultyInCharge: string;
+  activeShifts: string[];
+}
+
+export interface TelemetryKPIsDto {
+  totalWatchedHours: number;
+  hoursGrowthRate: string;
+  avgCompletionRate: number;
+  topPerformingSubject: string;
+  fullCompletionsCount: number;
+  fullCompletionsBadge: string;
+  earlyDropRate: number;
+  earlyDropBadge: string;
+}
+
+export interface FlattenedTelemetryLog {
+  student: {
+    id: string;
+    name: string;
+    rollNumber: string;
+    batch: string;
+    email?: string;
+    phone?: string;
+  };
+  lectureId: string;
+  lectureTitle: string;
+  subject: string;
+  faculty: string;
+  totalDuration: string;
+  watchedTimestamp: string;
+  watchPercentage: number;
+  status: 'completed' | 'in_progress' | 'not_started' | 'early_drop';
+  lastWatchedAt: string;
+  watchCount: number;
+  playbackSpeedAvg: string;
+  scrubDetected?: boolean;
+}
+
+

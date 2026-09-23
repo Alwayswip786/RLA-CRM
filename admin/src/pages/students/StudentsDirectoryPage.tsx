@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search,
   Download,
@@ -8,9 +8,14 @@ import {
   LayoutGrid,
   ListFilter,
   GraduationCap,
+  Loader2,
 } from 'lucide-react';
-import { MOCK_STUDENTS, MOCK_COURSE_METRICS } from '../../data/mockStudentDirectory';
-import type { StudentRecord } from '../../types/student-directory';
+import type {
+  StudentRecord,
+  CourseMetricSummary,
+  AcademySummaryMetricsDto,
+} from '../../types/student-directory';
+import { adminStudentApi } from '../../lib/adminStudentApi';
 import { StudentDetailDrawer } from './StudentDetailDrawer';
 import { VideoProgressBar } from '../../components/students/VideoProgressBar';
 import { CourseMetricsPanel } from '../../components/students/CourseMetricsPanel';
@@ -23,75 +28,111 @@ export const StudentsDirectoryPage: React.FC = () => {
   const [progressFilter, setProgressFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [viewMode, setViewMode] = useState<'unified' | 'grouped'>('unified');
+
+  // Dynamic Data States
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [totalStudentsCount, setTotalStudentsCount] = useState(0);
+  const [courseMetrics, setCourseMetrics] = useState<CourseMetricSummary[]>([]);
+  const [summaryMetrics, setSummaryMetrics] = useState<AcademySummaryMetricsDto | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Drawer
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Filter students
-  const filteredStudents = useMemo(() => {
-    return MOCK_STUDENTS.filter((std) => {
-      // Search
-      const query = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !query ||
-        std.name.toLowerCase().includes(query) ||
-        std.rollNumber.toLowerCase().includes(query) ||
-        std.phone.toLowerCase().includes(query) ||
-        std.email.toLowerCase().includes(query);
+  // 1. Initial Load: Academy Summary & Course Metrics
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const [sumData, coursesData] = await Promise.all([
+          adminStudentApi.getAcademySummaryMetrics(),
+          adminStudentApi.getCourseMetrics(),
+        ]);
+        setSummaryMetrics(sumData);
+        setCourseMetrics(coursesData);
+      } catch (err) {
+        console.error('Failed to load student directory metrics:', err);
+        toast.error('Failed to load aggregate course metrics');
+      }
+    };
+    fetchMetadata();
+  }, []);
 
-      // Course
-      const matchesCourse =
-        courseFilter === 'ALL' || std.enrolledCourseId === courseFilter;
-
-      // Batch
-      const matchesBatch =
-        batchFilter === 'ALL' || std.batch.toLowerCase().includes(batchFilter.toLowerCase());
-
-      // Progress
-      let matchesProgress = true;
-      if (progressFilter === 'gt75') matchesProgress = std.overallCourseProgress >= 75;
-      else if (progressFilter === '50to75')
-        matchesProgress = std.overallCourseProgress >= 50 && std.overallCourseProgress < 75;
-      else if (progressFilter === '25to50')
-        matchesProgress = std.overallCourseProgress >= 25 && std.overallCourseProgress < 50;
-      else if (progressFilter === 'lt25') matchesProgress = std.overallCourseProgress < 25;
-
-      // Status
-      const matchesStatus = statusFilter === 'ALL' || std.status === statusFilter;
-
-      return matchesSearch && matchesCourse && matchesBatch && matchesProgress && matchesStatus;
-    });
+  // 2. Load Filtered Student Roster
+  const fetchRoster = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await adminStudentApi.getStudentRoster({
+        search: searchQuery,
+        courseId: courseFilter,
+        batchShift: batchFilter,
+        progressFilter,
+        statusFilter,
+        limit: 100,
+      });
+      setStudents(data.students || []);
+      setTotalStudentsCount(data.totalCount || 0);
+    } catch (err) {
+      console.error('Failed to fetch student roster:', err);
+      toast.error('Failed to load students');
+    } finally {
+      setIsLoading(false);
+    }
   }, [searchQuery, courseFilter, batchFilter, progressFilter, statusFilter]);
+
+  // Debounce search query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchRoster();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [fetchRoster]);
 
   // Grouped students by course
   const groupedCourses = useMemo(() => {
     const activeCourses =
       courseFilter === 'ALL'
-        ? MOCK_COURSE_METRICS
-        : MOCK_COURSE_METRICS.filter((c) => c.courseId === courseFilter);
+        ? courseMetrics
+        : courseMetrics.filter((c) => c.courseId === courseFilter);
 
     return activeCourses.map((course) => {
-      const studentsInCourse = filteredStudents.filter(
-        (std) => std.enrolledCourseId === course.courseId
+      const studentsInCourse = students.filter(
+        (std) =>
+          std.enrolledCourseId === course.courseId ||
+          std.enrolledCourseTitle.toLowerCase().includes(course.courseTitle.toLowerCase()) ||
+          course.courseTitle.toLowerCase().includes(std.enrolledCourseTitle.toLowerCase())
       );
       return {
         course,
         students: studentsInCourse,
       };
     });
-  }, [filteredStudents, courseFilter]);
+  }, [students, courseFilter, courseMetrics]);
 
   const handleOpenStudent = (std: StudentRecord) => {
     setSelectedStudent(std);
     setIsDrawerOpen(true);
   };
 
-  const handleExportCSV = () => {
-    toast.success(
-      <div>
-        <div className="font-semibold text-[#F7F3E6]">Exporting Student Course Progress & Video Logs to CSV</div>
-        <div className="text-xs text-[#A8A294] mt-0.5">Generated report for {filteredStudents.length} students with exact timestamp records.</div>
-      </div>
-    );
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      await adminStudentApi.downloadStudentRosterCsv();
+      toast.success(
+        <div>
+          <div className="font-semibold text-[#F7F3E6]">Exporting Student Roster to CSV</div>
+          <div className="text-xs text-[#A8A294] mt-0.5">
+            Generated report for {students.length} students with exact timestamp records.
+          </div>
+        </div>
+      );
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      toast.error('Failed to export student roster CSV');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -149,9 +190,14 @@ export const StudentsDirectoryPage: React.FC = () => {
 
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2F2F2F] hover:bg-[#3D3D3D] text-[#F7F3E6] border border-[#3D3D3D] text-xs font-semibold transition-colors cursor-pointer"
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2F2F2F] hover:bg-[#3D3D3D] text-[#F7F3E6] border border-[#3D3D3D] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-60"
           >
-            <Download className="w-4 h-4 text-[#C19B48]" />
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 text-[#C19B48] animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 text-[#C19B48]" />
+            )}
             <span className="hidden sm:inline">Export CSV</span>
           </button>
         </div>
@@ -159,10 +205,11 @@ export const StudentsDirectoryPage: React.FC = () => {
 
       {/* 3. Course Division Selector & Course-Wise Metrics Panel */}
       <CourseMetricsPanel
-        metrics={MOCK_COURSE_METRICS}
+        metrics={courseMetrics}
         selectedCourseId={courseFilter}
         onSelectCourse={setCourseFilter}
-        totalStudentsCount={MOCK_STUDENTS.length}
+        totalStudentsCount={summaryMetrics?.cohortEnrollment || totalStudentsCount}
+        summaryMetrics={summaryMetrics}
       />
 
       {/* 4. Advanced Multi-Filter & Search Bar */}
@@ -231,9 +278,14 @@ export const StudentsDirectoryPage: React.FC = () => {
 
           <div className="flex items-center gap-2 text-[11px]">
             <span>
-              Showing <strong className="text-[#F7F3E6]">{filteredStudents.length}</strong> of {MOCK_STUDENTS.length} students
+              Showing <strong className="text-[#F7F3E6]">{students.length}</strong> of{' '}
+              {totalStudentsCount} students
             </span>
-            {(searchQuery || courseFilter !== 'ALL' || batchFilter !== 'ALL' || progressFilter !== 'ALL' || statusFilter !== 'ALL') && (
+            {(searchQuery ||
+              courseFilter !== 'ALL' ||
+              batchFilter !== 'ALL' ||
+              progressFilter !== 'ALL' ||
+              statusFilter !== 'ALL') && (
               <button
                 onClick={() => {
                   setSearchQuery('');
@@ -251,8 +303,16 @@ export const StudentsDirectoryPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Loading state indicator */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="w-6 h-6 text-[#C19B48] animate-spin" />
+          <span className="ml-2 text-xs text-[#A8A294]">Loading student telemetry...</span>
+        </div>
+      )}
+
       {/* 5. Main Roster: VIEW MODE 1 - UNIFIED TABLE */}
-      {viewMode === 'unified' && (
+      {!isLoading && viewMode === 'unified' && (
         <div className="rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
@@ -268,15 +328,15 @@ export const StudentsDirectoryPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#3D3D3D]/60 text-[#F7F3E6]">
-                {filteredStudents.length === 0 ? (
+                {students.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-[#A8A294]">
                       No student records match the selected course or filter options.
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((std) => {
-                    const lastVideo = std.videoLogs[0];
+                  students.map((std) => {
+                    const lastVideo = std.videoLogs?.[0];
                     return (
                       <tr
                         key={std.id}
@@ -295,8 +355,11 @@ export const StudentsDirectoryPage: React.FC = () => {
                             <div className="min-w-0">
                               <div className="font-semibold text-sm text-[#F7F3E6] group-hover:text-[#E8CF8D] truncate flex items-center gap-1.5">
                                 <span>{std.name}</span>
-                                {std.activeDevice.concurrentSessions > 1 && (
-                                  <span className="w-2 h-2 rounded-full bg-[#EF4444]" title="Multiple sessions logged in" />
+                                {std.activeDevice?.concurrentSessions > 1 && (
+                                  <span
+                                    className="w-2 h-2 rounded-full bg-[#EF4444]"
+                                    title="Multiple sessions logged in"
+                                  />
                                 )}
                               </div>
                               <div className="font-mono text-[11px] text-[#A8A294]">
@@ -369,9 +432,7 @@ export const StudentsDirectoryPage: React.FC = () => {
                           <div className="font-serif font-bold text-sm text-[#F7F3E6]">
                             {std.totalWatchTimeHours} hrs
                           </div>
-                          <div className="text-[10px] text-[#A8A294]">
-                            {std.lastActive}
-                          </div>
+                          <div className="text-[10px] text-[#A8A294]">{std.lastActive}</div>
                         </td>
 
                         {/* Gate RFID & Fee */}
@@ -415,7 +476,7 @@ export const StudentsDirectoryPage: React.FC = () => {
       )}
 
       {/* 5. Main Roster: VIEW MODE 2 - GROUPED BY COURSE COHORTS */}
-      {viewMode === 'grouped' && (
+      {!isLoading && viewMode === 'grouped' && (
         <div className="space-y-6">
           {groupedCourses.map(({ course, students }) => (
             <div
@@ -438,8 +499,8 @@ export const StudentsDirectoryPage: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-xs text-[#A8A294] mt-0.5">
-                      Faculty: <strong className="text-[#F7F3E6]">{course.facultyInCharge}</strong> •{' '}
-                      {course.totalLecturesCount} Total Lectures ({course.totalHours} hrs)
+                      Faculty: <strong className="text-[#F7F3E6]">{course.facultyInCharge}</strong>{' '}
+                      • {course.totalLecturesCount} Total Lectures ({course.totalHours} hrs)
                     </div>
                   </div>
                 </div>
@@ -479,7 +540,7 @@ export const StudentsDirectoryPage: React.FC = () => {
                         </tr>
                       ) : (
                         students.map((std) => {
-                          const lastVideo = std.videoLogs[0];
+                          const lastVideo = std.videoLogs?.[0];
                           return (
                             <tr
                               key={std.id}
@@ -500,12 +561,16 @@ export const StudentsDirectoryPage: React.FC = () => {
                               </td>
 
                               <td className="py-3 px-4">
-                                <div className="space-y-1 max-w-[140px]">
+                                <div className="space-y-1">
                                   <div className="flex items-center justify-between text-xs">
-                                    <span className="font-bold text-[#F7F3E6]">{std.overallCourseProgress}%</span>
-                                    <span className="text-[10px] text-[#A8A294]">{std.completedModulesCount}/{std.totalModulesCount}</span>
+                                    <span className="font-bold text-[#F7F3E6]">
+                                      {std.overallCourseProgress}%
+                                    </span>
+                                    <span className="text-[10px] text-[#A8A294]">
+                                      {std.completedModulesCount}/{std.totalModulesCount}
+                                    </span>
                                   </div>
-                                  <div className="h-1.5 w-full bg-[#1E1E1E] rounded-full overflow-hidden">
+                                  <div className="h-1.5 w-full bg-[#1E1E1E] rounded-full overflow-hidden border border-[#3D3D3D]">
                                     <div
                                       className={`h-full rounded-full ${
                                         std.overallCourseProgress >= 75
@@ -522,17 +587,29 @@ export const StudentsDirectoryPage: React.FC = () => {
 
                               <td className="py-3 px-4">
                                 {lastVideo ? (
-                                  <div className="space-y-0.5 max-w-[240px]">
-                                    <div className="text-xs font-medium text-[#F7F3E6] truncate">
+                                  <div className="space-y-1 max-w-[240px]">
+                                    <div className="text-xs font-semibold text-[#F7F3E6] truncate">
                                       {lastVideo.lectureTitle}
                                     </div>
-                                    <VideoProgressBar
-                                      percentage={lastVideo.watchPercentage}
-                                      timestampText={lastVideo.watchedTimestamp}
-                                      status={lastVideo.status}
-                                      skipAlert={lastVideo.skipAlert}
-                                      showDetails={true}
-                                    />
+                                    <div className="flex items-center gap-2 font-mono text-[11px] text-[#A8A294]">
+                                      <span>{lastVideo.watchedTimestamp}</span>
+                                      <span
+                                        className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                          lastVideo.status === 'completed'
+                                            ? 'bg-[#34D399]/20 text-[#34D399]'
+                                            : 'bg-[#C19B48]/20 text-[#E8CF8D]'
+                                        }`}
+                                      >
+                                        {lastVideo.status === 'completed'
+                                          ? 'Completed'
+                                          : `${lastVideo.watchPercentage}% Watched`}
+                                      </span>
+                                    </div>
+                                    {lastVideo.skipAlert && (
+                                      <div className="text-[10px] text-[#EF4444] font-medium flex items-center gap-1">
+                                        <span>⚠️ Scrubbing / fast-forward detected</span>
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-xs text-[#A8A294]">No video history</span>
@@ -540,7 +617,9 @@ export const StudentsDirectoryPage: React.FC = () => {
                               </td>
 
                               <td className="py-3 px-4">
-                                <div className="font-bold text-xs text-[#F7F3E6]">{std.totalWatchTimeHours} hrs</div>
+                                <div className="font-serif font-bold text-sm text-[#F7F3E6]">
+                                  {std.totalWatchTimeHours} hrs
+                                </div>
                                 <div className="text-[10px] text-[#A8A294]">{std.lastActive}</div>
                               </td>
 
@@ -550,7 +629,7 @@ export const StudentsDirectoryPage: React.FC = () => {
                                     e.stopPropagation();
                                     handleOpenStudent(std);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-[#1E1E1E] hover:bg-[#C19B48] text-[#F7F3E6] hover:text-[#1E1E1E] border border-[#3D3D3D] text-xs font-medium transition-colors cursor-pointer"
+                                  className="px-3 py-1.5 rounded-lg bg-[#1E1E1E] hover:bg-[#C19B48] text-[#F7F3E6] hover:text-[#1E1E1E] border border-[#3D3D3D] hover:border-[#C19B48] text-xs font-semibold transition-colors cursor-pointer"
                                 >
                                   Inspect
                                 </button>

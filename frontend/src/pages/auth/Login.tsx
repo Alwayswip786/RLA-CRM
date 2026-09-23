@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Lock, Phone, ArrowRight, User, ShieldCheck } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { FcGoogle } from 'react-icons/fc';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { useAuthStore } from '../../store/useAuthStore';

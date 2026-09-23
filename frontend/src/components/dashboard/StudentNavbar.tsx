@@ -1,28 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   PanelLeft,
-  Search,
   Bell,
   LogOut,
   User,
   ShieldCheck,
   HelpCircle,
 } from 'lucide-react';
-import { SearchDialog } from './SearchDialog';
 import { ThemeSwitcher } from './ThemeSwitcher';
-import { toast } from 'sonner';
+import { BottomSheet } from '../ui/BottomSheet';
+import { useIsDesktop } from '../../hooks/use-responsive';
+import { toast } from '../../lib/toast';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNoticeStore } from '../../store/useNoticeStore';
 import { cn } from '../../utils/cn';
 
 interface StudentNavbarProps {
   isCollapsed: boolean;
+  isMobileOpen?: boolean;
   onToggleSidebar: () => void;
   onOpenMobileSidebar: () => void;
 }
 
 export const StudentNavbar: React.FC<StudentNavbarProps> = ({
+  isMobileOpen,
   onToggleSidebar,
   onOpenMobileSidebar,
 }) => {
@@ -45,9 +47,51 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   const noticeUnreadCount = useNoticeStore((state) => state.unreadCount);
   const noticeTotalCount = useNoticeStore((state) => state.totalCount);
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const isDesktop = useIsDesktop(1024);
+
+  // Refs for outside-click detection
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(target)
+      ) {
+        setIsNotificationOpen(false);
+      }
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(target)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsNotificationOpen(false);
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isNotificationOpen || isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isNotificationOpen, isUserMenuOpen]);
 
   // Generate breadcrumb text
   const getBreadcrumb = () => {
@@ -64,7 +108,6 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
     if (path.includes('mains/questions')) return 'Daily Mains Questions';
     if (path.includes('mains/submit')) return 'Upload Answer Sheets';
     if (path.includes('mains/evaluated')) return 'Evaluated Copies & Remarks';
-    if (path.includes('interviews')) return 'Mock Interview Chamber';
     if (path.includes('bookmarks')) return 'Starred Questions & Vault';
     if (path.includes('bare-acts')) return 'Bare Act Decoding Notes';
     if (path.includes('judgments')) return 'Landmark Judgments';
@@ -85,45 +128,47 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
 
   return (
     <>
-      <SearchDialog isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-
-      <header className="sticky top-0 z-30 h-14 bg-[#F7F3E6]/95 dark:bg-[#0a1c36]/90 backdrop-blur-md border-b border-[#ded7c4] dark:border-[#143564] px-4 lg:px-6 flex items-center justify-between text-slate-800 dark:text-slate-100 transition-colors">
+      <header className="sticky top-0 z-30 h-14 bg-[#F7F3E6]/95 dark:bg-[#0a1c36]/90 backdrop-blur-md border-b border-[#ded7c4] dark:border-[#143564] px-2.5 sm:px-4 lg:px-6 flex items-center justify-between text-slate-800 dark:text-slate-100 transition-colors">
         {/* Left Side: Toggle & Breadcrumb / Batch */}
-        <div className="flex items-center gap-3">
-          {/* Desktop Toggle */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
+          {/* Desktop Toggle (>= 1024px) */}
           <button
             type="button"
             onClick={onToggleSidebar}
             title="Toggle Sidebar (Ctrl+B)"
-            className="hidden md:flex p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            className="hidden lg:flex p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
           >
             <PanelLeft className="w-4 h-4" />
           </button>
 
-          {/* Mobile Toggle */}
+          {/* Mobile / Tablet Toggle (< 1024px) */}
           <button
+            id="mobile-sidebar-toggle"
             type="button"
             onClick={onOpenMobileSidebar}
-            className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            aria-expanded={Boolean(isMobileOpen)}
+            aria-controls="student-sidebar-drawer"
+            className="lg:hidden p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+            aria-label="Open sidebar navigation"
           >
             <PanelLeft className="w-4 h-4" />
           </button>
 
           {/* Separator */}
-          <div className="h-4 w-px bg-slate-200 dark:bg-[#143564]" />
+          <div className="h-4 w-px bg-slate-200 dark:bg-[#143564] shrink-0" />
 
-          {/* Breadcrumb */}
-          <div className="flex items-center">
-            <span className="text-xs font-semibold text-slate-900 dark:text-white tracking-wide truncate">
+          {/* Breadcrumb with guaranteed truncation */}
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <span className="text-xs font-semibold text-slate-900 dark:text-white tracking-wide truncate block">
               {getBreadcrumb()}
             </span>
           </div>
         </div>
 
         {/* Right Side: Search, Live Pulse, Notifications, ThemeSwitcher, Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0">
           {/* Live Lecture Pulse Status */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
+          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
@@ -131,23 +176,11 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
             <span className="text-[11px]">Live: CPC Lecture at 5 PM</span>
           </div>
 
-          {/* Search Trigger Button */}
-          <button
-            type="button"
-            onClick={() => setIsSearchOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-[#c19b48]/60 transition-all text-xs cursor-pointer shadow-inner"
-          >
-            <Search className="w-3.5 h-3.5 text-[#c19b48]" />
-            <span className="hidden md:inline text-[11px]">
-              Search Bare Acts, Mock Tests...
-            </span>
-          </button>
-
           {/* Dark / Light Mode Switcher */}
           <ThemeSwitcher />
 
           {/* Notifications Dropdown */}
-          <div className="relative">
+          <div ref={notificationRef} className="relative shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -155,7 +188,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
                 setIsUserMenuOpen(false);
               }}
               title="Notifications"
-              className="relative p-2 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              className="relative p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
               <Bell className="w-4 h-4" />
               {noticeUnreadCount > 0 && (
@@ -163,8 +196,9 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
               )}
             </button>
 
-            {isNotificationOpen && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-88 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-2xl p-4 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+            {/* Desktop Notification Popover */}
+            {isDesktop && isNotificationOpen && (
+              <div className="absolute right-0 mt-2 w-80 sm:w-88 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-2xl p-4 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#143564]">
                   <h4 className="text-xs font-serif font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                     Classroom Notices
@@ -239,25 +273,26 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
           </div>
 
           {/* Student Profile / Account Dropdown */}
-          <div className="relative">
+          <div ref={userMenuRef} className="relative">
             <button
               type="button"
               onClick={() => {
                 setIsUserMenuOpen(!isUserMenuOpen);
                 setIsNotificationOpen(false);
               }}
-              className="flex items-center gap-2 p-1 sm:px-2 sm:py-1 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all cursor-pointer"
+              className="flex items-center gap-2 p-1 lg:pl-1 lg:pr-2.5 lg:py-1 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all cursor-pointer shrink-0"
             >
-              <div className="w-7 h-7 rounded-lg bg-[#c19b48]/20 text-[#c19b48] dark:text-[#e8cf8d] border border-[#c19b48]/40 flex items-center justify-center font-bold text-xs">
+              <div className="w-7 h-7 rounded-lg bg-[#c19b48]/20 text-[#c19b48] dark:text-[#e8cf8d] border border-[#c19b48]/40 flex items-center justify-center font-bold text-xs shrink-0">
                 {initials}
               </div>
-              <span className="hidden sm:inline text-xs font-semibold text-slate-900 dark:text-white max-w-24 truncate">
+              <span className="hidden lg:inline text-xs font-semibold text-slate-900 dark:text-white max-w-28 truncate">
                 {displayName}
               </span>
             </button>
 
-            {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-2xl p-2 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+            {/* Desktop User Menu Popover */}
+            {isDesktop && isUserMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-2xl p-2 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-3 py-2 border-b border-slate-100 dark:border-[#143564] mb-1">
                   <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
                   <p className="text-[10px] text-[#c19b48] font-mono">Roll: {displayRoll}</p>
@@ -315,6 +350,149 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
           </div>
         </div>
       </header>
+
+      {/* Mobile BottomSheet for Notifications */}
+      {!isDesktop && (
+        <BottomSheet
+          isOpen={isNotificationOpen}
+          onClose={() => setIsNotificationOpen(false)}
+          title="Classroom Notices"
+          subtitle={noticeUnreadCount > 0 ? `${noticeUnreadCount} new notices pending` : `${noticeTotalCount} total official circulars`}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-[#143564]/60">
+            {notices.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500 dark:text-slate-400">
+                No official circulars promulgated yet.
+              </div>
+            ) : (
+              notices.map((notice) => (
+                <div
+                  key={notice._id}
+                  onClick={() => {
+                    setIsNotificationOpen(false);
+                    navigate('/dashboard/notices');
+                  }}
+                  className="py-3 px-2 space-y-1 hover:bg-slate-50 dark:hover:bg-white/[0.03] active:bg-slate-100 dark:active:bg-[#143564]/40 rounded-xl cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-1">
+                      {notice.title}
+                    </p>
+                    {notice.priority === 'urgent' && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-rose-500/20 text-rose-600 dark:text-rose-400 shrink-0">
+                        URGENT
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2">
+                    {notice.content}
+                  </p>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                    <span className="text-[#c19b48] font-medium">{notice.circularNo}</span>
+                    <span>
+                      {new Date(notice.publishedAt).toLocaleDateString('en-IN', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="pt-4 mt-2 border-t border-slate-100 dark:border-[#143564]">
+            <button
+              onClick={() => {
+                setIsNotificationOpen(false);
+                navigate('/dashboard/notices');
+              }}
+              className="w-full py-2.5 rounded-xl bg-[#c19b48] text-[#061120] font-bold text-xs text-center cursor-pointer shadow-xs"
+            >
+              View All Academy Notices ({noticeTotalCount})
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* Mobile BottomSheet for Student Profile & Account */}
+      {!isDesktop && (
+        <BottomSheet
+          isOpen={isUserMenuOpen}
+          onClose={() => setIsUserMenuOpen(false)}
+          title={displayName}
+          subtitle={`Roll No: ${displayRoll || 'RLA-2025'} • Batch 2025-26`}
+        >
+          <div className="space-y-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsUserMenuOpen(false);
+                navigate('/dashboard/profile');
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 active:bg-slate-100 dark:active:bg-[#143564]/50 transition-colors text-left"
+            >
+              <div className="p-2 rounded-lg bg-amber-50 dark:bg-[#c19b48]/20 text-[#c19b48]">
+                <User className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-semibold block text-slate-900 dark:text-white">My Profile & KYC</span>
+                <span className="text-[10px] text-slate-400">Personal details & judicial credentials</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsUserMenuOpen(false);
+                navigate('/dashboard/fees');
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 active:bg-slate-100 dark:active:bg-[#143564]/50 transition-colors text-left"
+            >
+              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-semibold block text-slate-900 dark:text-white">Fee Receipts & Cards</span>
+                <span className="text-[10px] text-slate-400">Installments, tax invoices & statements</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsUserMenuOpen(false);
+                navigate('/dashboard/doubts');
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 active:bg-slate-100 dark:active:bg-[#143564]/50 transition-colors text-left"
+            >
+              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-500">
+                <HelpCircle className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-semibold block text-slate-900 dark:text-white">Faculty Doubt Desk</span>
+                <span className="text-[10px] text-slate-400">1-on-1 legal queries & citations</span>
+              </div>
+            </button>
+
+            <div className="my-2 border-t border-slate-100 dark:border-[#143564]" />
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsUserMenuOpen(false);
+                handleLogout();
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 active:bg-rose-50 dark:active:bg-rose-950/40 transition-colors text-left"
+            >
+              <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400">
+                <LogOut className="w-4 h-4" />
+              </div>
+              <span>Sign Out of Classroom</span>
+            </button>
+          </div>
+        </BottomSheet>
+      )}
     </>
   );
 };

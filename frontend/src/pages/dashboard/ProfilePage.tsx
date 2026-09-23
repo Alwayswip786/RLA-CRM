@@ -6,7 +6,6 @@ import {
   Scale,
   Calendar,
   Save,
-  ShieldCheck,
   Lock,
   Eye,
   EyeOff,
@@ -16,9 +15,54 @@ import {
   Loader2,
   BookOpen,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAuthStore } from '../../store/useAuthStore';
 import { apiClient } from '../../lib/apiClient';
+import { CustomSelect } from '../../components/ui/CustomSelect';
+
+const SALUTATION_OPTIONS = [
+  { value: 'Adv.', label: 'Advocate (Adv.)' },
+  { value: 'Mr.', label: 'Mr.' },
+  { value: 'Ms.', label: 'Ms.' },
+  { value: 'Dr.', label: 'Dr.' },
+];
+
+const ACADEMIC_STATUS_OPTIONS = [
+  { value: 'Full-Time Aspirant', label: 'Full-Time Aspirant (Dedicated Prep)' },
+  { value: 'Class 11 Student', label: 'Class 11 Student (Foundation & CLAT)' },
+  { value: 'Class 12 Student', label: 'Class 12 Student (Senior Secondary / Boards)' },
+];
+
+const TARGET_EXAM_OPTIONS = [
+  { value: 'Delhi Judicial Service (DJS)', label: 'Delhi Judicial Service (DJS)' },
+  { value: 'UP PCS (Judicial)', label: 'UP PCS (Judicial)' },
+  { value: 'Haryana Civil Judge (HCS-J)', label: 'Haryana Civil Judge (HCS-J)' },
+  { value: 'Rajasthan Judicial Service (RJS)', label: 'Rajasthan Judicial Service (RJS)' },
+  { value: 'MP Civil Judge (MP-CJ)', label: 'MP Civil Judge (MP-CJ)' },
+  { value: 'Bihar Judicial Service (BPSC-J)', label: 'Bihar Judicial Service (BPSC-J)' },
+  { value: 'Higher Judicial Services (HJS)', label: 'Higher Judicial Services (HJS)' },
+  { value: 'Assistant Public Prosecutor (APP/ADA)', label: 'Assistant Public Prosecutor (APP/ADA)' },
+  { value: 'CLAT PG / Judicial LLM', label: 'CLAT PG / Judicial LLM' },
+];
+
+const TARGET_STATE_OPTIONS = [
+  { value: 'Delhi / NCR', label: 'Delhi / NCR' },
+  { value: 'Uttar Pradesh', label: 'Uttar Pradesh' },
+  { value: 'Haryana', label: 'Haryana' },
+  { value: 'Punjab', label: 'Punjab' },
+  { value: 'Rajasthan', label: 'Rajasthan' },
+  { value: 'Madhya Pradesh', label: 'Madhya Pradesh' },
+  { value: 'Bihar', label: 'Bihar' },
+  { value: 'Himachal Pradesh', label: 'Himachal Pradesh' },
+  { value: 'Uttarakhand', label: 'Uttarakhand' },
+  { value: 'All-India Judicial Services', label: 'All-India Judicial Services' },
+];
+
+const TARGET_YEAR_OPTIONS = [
+  { value: '2025', label: 'Target 2025' },
+  { value: '2025-2026', label: 'Target 2025–2026' },
+  { value: '2026-2027', label: 'Target 2026–2027' },
+];
 
 export const ProfilePage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -171,25 +215,11 @@ export const ProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Candidate Information & Judicial KYC</span>
-        </div>
-        <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-          Student Profile & Security Chamber
-        </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Manage your verified academy credentials, judicial examination session, and portal access keys.
-        </p>
-      </div>
-
+    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start gap-3.5 animate-in fade-in duration-200">
       {/* Card 1: Student Profile Form */}
       <form
         onSubmit={handleSaveProfile}
-        className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-6 shadow-xs"
+        className="flex-1 lg:flex-[1.15] w-full p-4 sm:p-5 lg:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-5 shadow-xs"
       >
         <div className="flex items-center gap-4 pb-6 border-b border-slate-100 dark:border-[#143564]">
           <div className="w-16 h-16 rounded-2xl bg-[#c19b48]/20 border-2 border-[#c19b48]/40 text-[#c19b48] dark:text-[#e8cf8d] flex items-center justify-center font-bold text-xl font-serif shrink-0">
@@ -212,23 +242,13 @@ export const ProfilePage: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Professional Title / Salutation */}
-          <div>
-            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Professional Title / Salutation
-            </label>
-            <div className="relative">
-              <select
-                value={salutation}
-                onChange={(e) => setSalutation(e.target.value as 'Adv.' | 'Mr.' | 'Ms.' | 'Dr.')}
-                className="w-full px-3 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48] cursor-pointer"
-              >
-                <option value="Adv.">Advocate (Adv.)</option>
-                <option value="Mr.">Mr.</option>
-                <option value="Ms.">Ms.</option>
-                <option value="Dr.">Dr.</option>
-              </select>
-            </div>
-          </div>
+          <CustomSelect
+            label="Professional Title / Salutation"
+            value={salutation}
+            onChange={(val) => setSalutation(val as 'Adv.' | 'Mr.' | 'Ms.' | 'Dr.')}
+            options={SALUTATION_OPTIONS}
+            sheetTitle="Select Professional Title"
+          />
 
           {/* Candidate Legal Name */}
           <div>
@@ -249,12 +269,12 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           {/* Registered Email (Protected) */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
+          <div className="col-span-full">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
               <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
                 Registered Institutional Email
               </label>
-              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">
                 <CheckCircle2 className="w-3 h-3" />
                 Verified
               </span>
@@ -266,7 +286,7 @@ export const ProfilePage: React.FC = () => {
                 disabled
                 value={email}
                 title="Your verified email is locked to your student record."
-                className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-[#143564] text-xs sm:text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed select-none"
+                className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-[#143564] text-xs sm:text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed select-none truncate"
               />
             </div>
           </div>
@@ -289,100 +309,53 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           {/* Academic Background / Status */}
-          <div>
-            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Academic Background / Status
-            </label>
-            <div className="relative">
-              <BookOpen className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={academicStatus}
-                onChange={(e) => setAcademicStatus(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48] cursor-pointer"
-              >
-                <option value="Full-Time Aspirant">Full-Time Aspirant (Dedicated Prep)</option>
-                <option value="Class 11 Student">Class 11 Student (Foundation & CLAT)</option>
-                <option value="Class 12 Student">Class 12 Student (Senior Secondary / Boards)</option>
-              </select>
-            </div>
-          </div>
+          <CustomSelect
+            label="Academic Background / Status"
+            icon={<BookOpen className="w-4 h-4" />}
+            value={academicStatus}
+            onChange={(val) => setAcademicStatus(val)}
+            options={ACADEMIC_STATUS_OPTIONS}
+            sheetTitle="Select Academic Background"
+          />
 
           {/* Target Judicial Focus */}
-          <div>
-            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Target Judicial Focus
-            </label>
-            <div className="relative">
-              <Scale className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={targetExam}
-                onChange={(e) => setTargetExam(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48] cursor-pointer"
-              >
-                <option value="Delhi Judicial Service (DJS)">Delhi Judicial Service (DJS)</option>
-                <option value="UP PCS (Judicial)">UP PCS (Judicial)</option>
-                <option value="Haryana Civil Judge (HCS-J)">Haryana Civil Judge (HCS-J)</option>
-                <option value="Rajasthan Judicial Service (RJS)">Rajasthan Judicial Service (RJS)</option>
-                <option value="MP Civil Judge (MP-CJ)">MP Civil Judge (MP-CJ)</option>
-                <option value="Bihar Judicial Service (BPSC-J)">Bihar Judicial Service (BPSC-J)</option>
-                <option value="Higher Judicial Services (HJS)">Higher Judicial Services (HJS)</option>
-                <option value="Assistant Public Prosecutor (APP/ADA)">Assistant Public Prosecutor (APP/ADA)</option>
-                <option value="CLAT PG / Judicial LLM">CLAT PG / Judicial LLM</option>
-              </select>
-            </div>
-          </div>
+          <CustomSelect
+            label="Target Judicial Focus"
+            icon={<Scale className="w-4 h-4" />}
+            value={targetExam}
+            onChange={(val) => setTargetExam(val)}
+            options={TARGET_EXAM_OPTIONS}
+            searchable
+            sheetTitle="Target Judicial Focus"
+          />
 
           {/* State / Jurisdiction */}
-          <div>
-            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              State / Jurisdiction
-            </label>
-            <div className="relative">
-              <Scale className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={targetState}
-                onChange={(e) => setTargetState(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48] cursor-pointer"
-              >
-                <option value="Delhi / NCR">Delhi / NCR</option>
-                <option value="Uttar Pradesh">Uttar Pradesh</option>
-                <option value="Haryana">Haryana</option>
-                <option value="Punjab">Punjab</option>
-                <option value="Rajasthan">Rajasthan</option>
-                <option value="Madhya Pradesh">Madhya Pradesh</option>
-                <option value="Bihar">Bihar</option>
-                <option value="Himachal Pradesh">Himachal Pradesh</option>
-                <option value="Uttarakhand">Uttarakhand</option>
-                <option value="All-India Judicial Services">All-India Judicial Services</option>
-              </select>
-            </div>
-          </div>
+          <CustomSelect
+            label="State / Jurisdiction"
+            icon={<Scale className="w-4 h-4" />}
+            value={targetState}
+            onChange={(val) => setTargetState(val)}
+            options={TARGET_STATE_OPTIONS}
+            searchable
+            sheetTitle="State / Jurisdiction"
+          />
 
           {/* Target Examination Year */}
-          <div>
-            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Target Examination Year
-            </label>
-            <div className="relative">
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={targetYear}
-                onChange={(e) => setTargetYear(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48] cursor-pointer"
-              >
-                <option value="2025">Target 2025</option>
-                <option value="2025-2026">Target 2025–2026</option>
-                <option value="2026-2027">Target 2026–2027</option>
-              </select>
-            </div>
-          </div>
+          <CustomSelect
+            label="Target Examination Year"
+            icon={<Calendar className="w-4 h-4" />}
+            value={targetYear}
+            onChange={(val) => setTargetYear(val)}
+            options={TARGET_YEAR_OPTIONS}
+            sheetTitle="Target Examination Year"
+          />
         </div>
 
         <div className="pt-4 border-t border-slate-100 dark:border-[#143564] flex justify-end">
           <button
             type="submit"
             disabled={isSavingProfile}
-            className="px-6 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] disabled:opacity-60 text-[#061120] font-semibold text-xs sm:text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] disabled:opacity-60 text-[#061120] font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
           >
             {isSavingProfile ? (
               <>
@@ -402,7 +375,7 @@ export const ProfilePage: React.FC = () => {
       {/* Card 2: Security & Password Management */}
       <form
         onSubmit={handleChangePassword}
-        className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-6 shadow-xs"
+        className="flex-1 w-full p-4 sm:p-5 lg:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-5 shadow-xs"
       >
         <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-[#143564]">
           <div className="w-10 h-10 rounded-xl bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] flex items-center justify-center shrink-0">
@@ -448,7 +421,7 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2 gap-3.5">
             {/* New Password */}
             <div>
               <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
@@ -501,16 +474,16 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-slate-100 dark:border-[#143564] flex items-center justify-between">
+        <div className="pt-4 border-t border-slate-100 dark:border-[#143564] flex flex-col sm:flex-row lg:flex-col 2xl:flex-row items-stretch sm:items-center lg:items-start 2xl:items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <AlertCircle className="w-3.5 h-3.5 text-[#c19b48]" />
+            <AlertCircle className="w-3.5 h-3.5 text-[#c19b48] shrink-0" />
             <span>Updating your password will refresh your active session.</span>
           </div>
 
           <button
             type="submit"
             disabled={isUpdatingPassword}
-            className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#c19b48] dark:hover:bg-[#d8b862] text-white dark:text-[#061120] font-semibold text-xs sm:text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-60"
+            className="w-full sm:w-auto lg:w-full 2xl:w-auto px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#c19b48] dark:hover:bg-[#d8b862] text-white dark:text-[#061120] font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-60 shrink-0"
           >
             {isUpdatingPassword ? (
               <>

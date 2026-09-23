@@ -29,7 +29,6 @@ import { MainsQuestionsPage } from './pages/exams/MainsQuestionsPage';
 import { TestsAllPage } from './pages/exams/TestsAllPage';
 import { TestsQuestionBankPage } from './pages/exams/TestsQuestionBankPage';
 import { TestsRankingsPage } from './pages/exams/TestsRankingsPage';
-import { InterviewsPage } from './pages/exams/InterviewsPage';
 
 // Legal Knowledge Vault Pages
 import { BareActsPage } from './pages/vault/BareActsPage';
@@ -45,6 +44,7 @@ import { DoubtsPage } from './pages/campus/DoubtsPage';
 import { FeesPage } from './pages/campus/FeesPage';
 import { NoticesPage } from './pages/campus/NoticesPage';
 import { StaffPage } from './pages/campus/StaffPage';
+import { SystemSettingsPage } from './pages/settings/SystemSettingsPage';
 
 function App() {
   const initSession = useAdminAuthStore((state) => state.initSession);
@@ -102,48 +102,47 @@ function App() {
 
           {/* Admissions & Leads CRM */}
           <Route path="/leads" element={<Navigate to="/leads/pipeline" replace />} />
-          <Route path="/leads/pipeline" element={<LeadsPipelinePage />} />
-          <Route path="/leads/demos" element={<LeadsDemosPage />} />
-          <Route path="/leads/new-enrollment" element={<LeadsNewEnrollmentPage />} />
+          <Route path="/leads/pipeline" element={<AdminProtectedRoute requiredPermission="leads:view"><LeadsPipelinePage /></AdminProtectedRoute>} />
+          <Route path="/leads/demos" element={<AdminProtectedRoute requiredPermission="leads:view"><LeadsDemosPage /></AdminProtectedRoute>} />
+          <Route path="/leads/new-enrollment" element={<AdminProtectedRoute requiredPermission="leads:create"><LeadsNewEnrollmentPage /></AdminProtectedRoute>} />
 
           {/* Academic & Classroom CMS */}
           <Route path="/courses" element={<Navigate to="/courses/all" replace />} />
-          <Route path="/courses/all" element={<CoursesAllPage />} />
-          <Route path="/courses/batches" element={<CoursesBatchesPage />} />
-          <Route path="/courses/recordings" element={<CoursesRecordingsPage />} />
-          <Route path="/live-classes" element={<LiveClassesPage />} />
-          <Route path="/timetable" element={<TimetablePage />} />
-          <Route path="/daily-digest" element={<DailyDigestPage />} />
+          <Route path="/courses/all" element={<AdminProtectedRoute requiredPermission="courses:view"><CoursesAllPage /></AdminProtectedRoute>} />
+          <Route path="/courses/batches" element={<AdminProtectedRoute requiredPermission="courses:view"><CoursesBatchesPage /></AdminProtectedRoute>} />
+          <Route path="/courses/recordings" element={<AdminProtectedRoute requiredPermission="courses:view"><CoursesRecordingsPage /></AdminProtectedRoute>} />
+          <Route path="/live-classes" element={<AdminProtectedRoute requiredPermission="live_classes:view"><LiveClassesPage /></AdminProtectedRoute>} />
+          <Route path="/timetable" element={<AdminProtectedRoute requiredPermission="timetable:view"><TimetablePage /></AdminProtectedRoute>} />
+          <Route path="/daily-digest" element={<AdminProtectedRoute requiredPermission="daily_digest:view"><DailyDigestPage /></AdminProtectedRoute>} />
 
           {/* Exams & Evaluation Center */}
           <Route path="/mains-evaluation" element={<Navigate to="/mains-evaluation/inbox" replace />} />
-          <Route path="/mains-evaluation/inbox" element={<MainsInboxPage />} />
-          <Route path="/mains-evaluation/graded" element={<MainsGradedPage />} />
-          <Route path="/mains-evaluation/questions" element={<MainsQuestionsPage />} />
+          <Route path="/mains-evaluation/inbox" element={<AdminProtectedRoute requiredPermission="mains_evaluation:view"><MainsInboxPage /></AdminProtectedRoute>} />
+          <Route path="/mains-evaluation/graded" element={<AdminProtectedRoute requiredPermission="mains_evaluation:view"><MainsGradedPage /></AdminProtectedRoute>} />
+          <Route path="/mains-evaluation/questions" element={<AdminProtectedRoute requiredPermission="mains_evaluation:view"><MainsQuestionsPage /></AdminProtectedRoute>} />
 
           <Route path="/tests" element={<Navigate to="/tests/all" replace />} />
-          <Route path="/tests/all" element={<TestsAllPage />} />
-          <Route path="/tests/bank" element={<TestsQuestionBankPage />} />
-          <Route path="/tests/rankings" element={<TestsRankingsPage />} />
-
-          <Route path="/interviews" element={<InterviewsPage />} />
+          <Route path="/tests/all" element={<AdminProtectedRoute requiredPermission="tests:view"><TestsAllPage /></AdminProtectedRoute>} />
+          <Route path="/tests/bank" element={<AdminProtectedRoute requiredPermission="tests:view"><TestsQuestionBankPage /></AdminProtectedRoute>} />
+          <Route path="/tests/rankings" element={<AdminProtectedRoute requiredPermission="tests:view"><TestsRankingsPage /></AdminProtectedRoute>} />
 
           {/* Legal Knowledge Vault */}
-          <Route path="/bare-acts" element={<BareActsPage />} />
-          <Route path="/judgments" element={<JudgmentsPage />} />
-          <Route path="/pyqs" element={<PyqsPage />} />
+          <Route path="/bare-acts" element={<AdminProtectedRoute requiredPermission="vault:view"><BareActsPage /></AdminProtectedRoute>} />
+          <Route path="/judgments" element={<AdminProtectedRoute requiredPermission="vault:view"><JudgmentsPage /></AdminProtectedRoute>} />
+          <Route path="/pyqs" element={<AdminProtectedRoute requiredPermission="vault:view"><PyqsPage /></AdminProtectedRoute>} />
 
           {/* Student Directory & Analytics */}
           <Route path="/students" element={<Navigate to="/students/roster" replace />} />
-          <Route path="/students/roster" element={<StudentsDirectoryPage />} />
-          <Route path="/students/video-tracking" element={<StudentsVideoTrackingPage />} />
-          <Route path="/students/:studentId" element={<StudentsDirectoryPage />} />
+          <Route path="/students/roster" element={<AdminProtectedRoute requiredPermission="students:view"><StudentsDirectoryPage /></AdminProtectedRoute>} />
+          <Route path="/students/video-tracking" element={<AdminProtectedRoute requiredPermission="students:view"><StudentsVideoTrackingPage /></AdminProtectedRoute>} />
+          <Route path="/students/:studentId" element={<AdminProtectedRoute requiredPermission="students:view"><StudentsDirectoryPage /></AdminProtectedRoute>} />
 
           {/* Campus & Institutional CRM */}
-          <Route path="/doubts" element={<DoubtsPage />} />
-          <Route path="/fees" element={<FeesPage />} />
-          <Route path="/notices" element={<NoticesPage />} />
-          <Route path="/staff" element={<StaffPage />} />
+          <Route path="/doubts" element={<AdminProtectedRoute requiredPermission="doubts:view"><DoubtsPage /></AdminProtectedRoute>} />
+          <Route path="/fees" element={<AdminProtectedRoute requiredPermission="fees:view"><FeesPage /></AdminProtectedRoute>} />
+          <Route path="/notices" element={<AdminProtectedRoute requiredPermission="notices:view"><NoticesPage /></AdminProtectedRoute>} />
+          <Route path="/staff" element={<AdminProtectedRoute requiredPermission="staff:view"><StaffPage /></AdminProtectedRoute>} />
+          <Route path="/settings" element={<AdminProtectedRoute requiredPermission="settings:view"><SystemSettingsPage /></AdminProtectedRoute>} />
         </Route>
 
         {/* Fallback to Home */}

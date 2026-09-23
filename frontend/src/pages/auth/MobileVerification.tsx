@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Phone, ArrowRight, ShieldCheck, RotateCcw, Edit2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { useAuthStore } from '../../store/useAuthStore';
 

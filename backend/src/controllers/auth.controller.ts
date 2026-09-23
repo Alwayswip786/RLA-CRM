@@ -16,6 +16,7 @@ import crypto from 'crypto';
 import OAuthLoginCode from '../models/oauthLoginCode.model.js';
 import { hashOAuthCode, buildGoogleOAuthResultUrl } from '../services/googleOAuth.service.js';
 import { CLIENT_URL, NODE_ENV } from '../config/env.js';
+import { recordAuditLog } from '../services/auditLog.service.js';
 
 const isProduction = NODE_ENV === 'production' || CLIENT_URL.startsWith('https://');
 
@@ -36,6 +37,20 @@ const sanitizeUser = (user: IUser | any) => {
   delete obj.password;
   delete obj.refreshTokens;
   delete obj.authVersion;
+
+  // For administrative staff, compute effective permissions
+  if (obj.role === 'admin' || obj.role === 'faculty') {
+    const roleObj = obj.adminRoleId;
+    const rolePerms: string[] = Array.isArray(roleObj?.permissions) ? roleObj.permissions : [];
+    const customPerms: string[] = Array.isArray(obj.customPermissions) ? obj.customPermissions : [];
+    const isSuper = Boolean(obj.isSuperAdmin || rolePerms.includes('*'));
+
+    obj.permissions = isSuper ? ['*'] : Array.from(new Set([...rolePerms, ...customPerms]));
+    obj.roleName = roleObj?.name || obj.adminTitle || (obj.role === 'admin' ? 'Administrator' : 'Faculty');
+    obj.permissionTier = obj.permissionTier || roleObj?.permissionTier || (isSuper ? 'Full Access' : 'Academic & Grading');
+    obj.adminRole = roleObj;
+  }
+
   return {
     ...obj,
     hasPassword,
@@ -124,11 +139,21 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   }
 
   const trimmed = String(identifier).trim();
+  const lowerTrimmed = trimmed.toLowerCase();
 
-  // Multi-identifier lookup: matches email (case-insensitive) OR rollNo (uppercase)
+  // Multi-identifier lookup: matches email (case-insensitive, alias support) OR rollNo (uppercase)
+  const lookupEmails = [lowerTrimmed];
+  if (lowerTrimmed === 'director@rajinderlawacademy.com') {
+    lookupEmails.push('rajinder@rajinderlawacademy.com');
+  } else if (lowerTrimmed === 'rajinder@rajinderlawacademy.com') {
+    lookupEmails.push('director@rajinderlawacademy.com');
+  }
+
   const user = await User.findOne({
-    $or: [{ email: trimmed.toLowerCase() }, { rollNo: trimmed.toUpperCase() }],
-  }).select('+password +authVersion +refreshTokens');
+    $or: [{ email: { $in: lookupEmails } }, { rollNo: trimmed.toUpperCase() }],
+  })
+    .select('+password +authVersion +refreshTokens')
+    .populate('adminRoleId');
 
   if (!user || !user.password) {
     throw new ApiError(401, 'Invalid credentials. Please verify your details and try again.');
@@ -151,6 +176,23 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   user.lastLoginAt = new Date();
   user.lastActiveAt = new Date();
   await user.save();
+
+  // Record audit log for administrative logins
+  if (user.role === 'admin' || user.role === 'faculty') {
+    await recordAuditLog(req, {
+      action: 'auth:login',
+      targetResource: 'admin_user',
+      targetResourceId: String(user._id),
+      targetName: user.name,
+      description: `Staff member ${user.name} logged into Chamber Administration`,
+      actorOverride: {
+        id: user._id,
+        name: user.name,
+        email: user.email || '',
+        role: user.adminTitle || (user.isSuperAdmin ? 'Director / Super Admin' : user.role),
+      },
+    });
+  }
 
   setRefreshCookie(res, tokens.refreshToken);
 

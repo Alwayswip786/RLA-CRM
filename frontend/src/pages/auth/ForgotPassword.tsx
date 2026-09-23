@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { apiClient } from '../../lib/apiClient';
 

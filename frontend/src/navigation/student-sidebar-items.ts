@@ -11,7 +11,6 @@ import {
   Receipt,
   BellRing,
   Newspaper,
-  Users,
   Bookmark,
   QrCode,
   type LucideIcon,
@@ -118,13 +117,8 @@ export const studentSidebarItems: NavGroup[] = [
         subItems: [
           {
             id: 'daily-questions',
-            title: 'Daily Mains Questions',
+            title: 'Daily Questions & Submission',
             url: '/dashboard/mains/questions',
-          },
-          {
-            id: 'submit-pdf',
-            title: 'Upload Answer Sheets (PDF)',
-            url: '/dashboard/mains/submit',
           },
           {
             id: 'evaluated-copies',
@@ -132,14 +126,6 @@ export const studentSidebarItems: NavGroup[] = [
             url: '/dashboard/mains/evaluated',
           },
         ],
-      },
-      {
-        id: 'interview-chamber',
-        title: 'Mock Interview Chamber',
-        url: '/dashboard/interviews',
-        icon: Users,
-        badge: 'New',
-        badgeColor: 'bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30',
       },
       {
         id: 'bookmarks',

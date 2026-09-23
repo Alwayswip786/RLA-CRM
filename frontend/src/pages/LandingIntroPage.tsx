@@ -1,13 +1,24 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { ThemeSwitcher } from '../components/dashboard/ThemeSwitcher';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSettingsStore } from '../store/useSettingsStore';
+import { cn } from '../utils/cn';
 
 export function LandingIntroPage() {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
+
+  const banner = useSettingsStore((state) => state.banner);
+  const settings = useSettingsStore((state) => state.settings);
+  const fetchPublicSettings = useSettingsStore((state) => state.fetchPublicSettings);
+
+  useEffect(() => {
+    fetchPublicSettings();
+  }, [fetchPublicSettings]);
 
   return (
     <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#F7F3E6] dark:bg-[#040B14] text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-[#C19B48]/20 selection:text-[#C19B48]">
@@ -18,17 +29,54 @@ export function LandingIntroPage() {
         {/* Soft Ambient Radial Light Behind the Dashboard Mockup */}
         <div className="pointer-events-none absolute inset-y-0 right-0 w-[58%] bg-[radial-gradient(circle_at_53%_48%,rgba(193,155,72,0.14),rgba(247,243,230,0.55)_35%,transparent_70%)] dark:bg-[radial-gradient(circle_at_53%_48%,rgba(193,155,72,0.16),rgba(10,28,54,0.55)_35%,transparent_70%)]" />
 
-        {/* Admissions Announcement Banner */}
-        <div className="relative z-30 w-full bg-[#c19b48]/12 dark:bg-[#061120] border-b border-[#c19b48]/25 dark:border-[#143564] py-1.5 px-4 text-center text-xs text-slate-700 dark:text-slate-300 font-medium shrink-0">
-          <div className="max-w-[1440px] mx-auto flex items-center justify-center gap-2.5">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#c19b48] text-[#061120] text-[10px] font-bold uppercase tracking-wider">
-              Admissions 2025–26
-            </span>
-            <span className="truncate">
-              Comprehensive Judicial Foundation Batch Open • Daily Mains Answer Writing (DAW) Starts Monday
-            </span>
+        {/* Admissions Announcement Banner (Dynamic from Admin Settings) */}
+        {banner?.enabled && (
+          <div
+            className={cn(
+              'relative z-30 w-full border-b py-1.5 px-4 text-center text-xs font-medium shrink-0 transition-colors',
+              banner.theme === 'gold' &&
+                'bg-[#c19b48]/12 dark:bg-[#061120] border-[#c19b48]/25 dark:border-[#143564] text-slate-700 dark:text-slate-300',
+              banner.theme === 'urgent' &&
+                'bg-rose-500/10 dark:bg-rose-950/40 border-rose-500/30 text-rose-700 dark:text-rose-300',
+              banner.theme === 'blue' &&
+                'bg-blue-500/10 dark:bg-blue-950/40 border-blue-500/30 text-blue-700 dark:text-blue-300',
+              banner.theme === 'emerald' &&
+                'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+            )}
+          >
+            <div className="max-w-[1440px] mx-auto flex items-center justify-center gap-2.5">
+              <span
+                className={cn(
+                  'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+                  banner.theme === 'gold' && 'bg-[#c19b48] text-[#061120]',
+                  banner.theme === 'urgent' && 'bg-rose-500 text-white',
+                  banner.theme === 'blue' && 'bg-blue-500 text-white',
+                  banner.theme === 'emerald' && 'bg-emerald-500 text-white'
+                )}
+              >
+                {banner.badgeText || 'ADMISSIONS 2025–26'}
+              </span>
+              <span className="truncate">
+                {banner.message}
+              </span>
+              {banner.actionLink && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (banner.actionLink?.startsWith('http')) {
+                      window.open(banner.actionLink, '_blank');
+                    } else {
+                      navigate(banner.actionLink!);
+                    }
+                  }}
+                  className="font-bold underline text-xs hover:opacity-80 transition-opacity ml-1 cursor-pointer shrink-0"
+                >
+                  {banner.actionText || 'Enroll Now →'}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Top Navigation Bar: Logo on Left, ThemeSwitcher + Login CTA on Right */}
         <header className="relative z-30 flex items-center justify-between w-full max-w-[1440px] mx-auto px-8 pt-5 lg:px-12 lg:pt-6 xl:px-16 xl:pt-6 shrink-0">
@@ -145,11 +193,35 @@ export function LandingIntroPage() {
       {/* MOBILE VIEW (flex on mobile, hidden on md and above)      */}
       {/* ========================================================= */}
       <section className="relative z-10 flex min-h-[100dvh] w-full flex-col justify-between overflow-hidden bg-[#F7F3E6] dark:bg-[#040B14] px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3 text-center md:hidden transition-colors">
-        {/* Mobile Admissions Ribbon */}
-        <div className="w-full -mx-5 px-4 py-1.5 bg-[#c19b48]/15 dark:bg-[#061120] border-b border-[#c19b48]/25 dark:border-[#143564] text-[10px] font-medium text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 mb-3">
-          <span className="font-bold text-[#A07C2B] dark:text-[#E2BC5C] uppercase">Admissions Open:</span>
-          <span className="truncate">2025–26 Judicial Foundation Batch</span>
-        </div>
+        {/* Mobile Admissions Ribbon (Dynamic from Admin Settings) */}
+        {banner?.enabled && (
+          <div
+            className={cn(
+              'w-full -mx-5 px-4 py-1.5 border-b text-[10px] font-medium flex items-center justify-center gap-1.5 mb-3 transition-colors',
+              banner.theme === 'gold' &&
+                'bg-[#c19b48]/15 dark:bg-[#061120] border-[#c19b48]/25 dark:border-[#143564] text-slate-700 dark:text-slate-300',
+              banner.theme === 'urgent' &&
+                'bg-rose-500/15 dark:bg-rose-950/40 border-rose-500/30 text-rose-700 dark:text-rose-300',
+              banner.theme === 'blue' &&
+                'bg-blue-500/15 dark:bg-blue-950/40 border-blue-500/30 text-blue-700 dark:text-blue-300',
+              banner.theme === 'emerald' &&
+                'bg-emerald-500/15 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+            )}
+          >
+            <span
+              className={cn(
+                'font-bold uppercase tracking-wider text-[9px] px-1.5 py-0.2 rounded',
+                banner.theme === 'gold' && 'bg-[#c19b48] text-[#061120]',
+                banner.theme === 'urgent' && 'bg-rose-500 text-white',
+                banner.theme === 'blue' && 'bg-blue-500 text-white',
+                banner.theme === 'emerald' && 'bg-emerald-500 text-white'
+              )}
+            >
+              {banner.badgeText || 'ADMISSIONS'}
+            </span>
+            <span className="truncate">{banner.message}</span>
+          </div>
+        )}
 
         {/* Mobile Top Header */}
         <div className="flex items-center justify-between w-full mb-2 shrink-0">
@@ -190,9 +262,9 @@ export function LandingIntroPage() {
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
             Engineered for Civil Judge (Junior Division) &amp; Higher Judicial Services examinations.
           </p>
-          {/* Mobile Exam Badges */}
+          {/* Mobile Exam Badges (Dynamic from Settings) */}
           <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2.5 max-w-xs mx-auto">
-            {['DJS', 'UP PCS-J', 'HCS', 'RJS', 'HJS'].map((code) => (
+            {(settings?.supportedExams || ['DJS', 'UP PCS-J', 'HCS', 'RJS', 'HJS']).map((code) => (
               <span
                 key={code}
                 className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/80 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-slate-700 dark:text-slate-300"

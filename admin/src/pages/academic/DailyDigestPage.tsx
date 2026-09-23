@@ -1,182 +1,330 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Newspaper,
-  Send,
+  Plus,
+  Search,
+  CheckCircle,
+  Clock,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen,
+  Loader2,
+  Sparkles,
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-
-interface DigestEntry {
-  id: string;
-  title: string;
-  category: string;
-  publishDate: string;
-  ratioSummary: string;
-  author: string;
-  readsCount: number;
-}
-
-const PAST_DIGESTS: DigestEntry[] = [
-  {
-    id: 'digest-01',
-    title: 'Defect of Jurisdiction vs Irregular Exercise of Jurisdiction',
-    category: 'Civil Procedure Code (Section 21)',
-    publishDate: 'Today, 06:00 AM',
-    ratioSummary: 'Kiran Singh v. Chaman Paswan: A decree passed by a court without inherent jurisdiction is a nullity and its invalidity could be set up whenever and wherever it is sought to be enforced.',
-    author: 'Adv. Rajinder Sir',
-    readsCount: 394,
-  },
-  {
-    id: 'digest-02',
-    title: 'Constructive Res Judicata Applicability to Execution Proceedings',
-    category: 'CPC Order 21 & Sec 11',
-    publishDate: 'Yesterday, 06:00 AM',
-    ratioSummary: 'Principles of res judicata apply equally to execution proceedings between the same decree holder and judgment debtor once issues have been determined.',
-    author: 'Adv. Rajinder Sir',
-    readsCount: 422,
-  },
-  {
-    id: 'digest-03',
-    title: 'Arrest Guidelines under BNSS Section 35: Mandatory Notice',
-    category: 'BNSS 2023 / Criminal Law',
-    publishDate: '11 Sep 2026',
-    ratioSummary: 'Police officer must record reasons in writing when arrest is not made for offences punishable up to 7 years, continuing the Arnesh Kumar doctrine into the new Sanhita.',
-    author: 'Adv. Sharma',
-    readsCount: 480,
-  },
-];
+import type {
+  DailyLegalDigestEdition,
+  DailyDigestAdminStats,
+  DailyDigestAdminFilterParams,
+} from '../../types/dailyDigest.types';
+import { fetchAllEditionsAdmin } from '../../services/dailyDigest.service';
+import { EditionAdminTable } from '../../components/daily-digest/EditionAdminTable';
+import { CreateEditionModal } from '../../components/daily-digest/CreateEditionModal';
+import { EditEditionModal } from '../../components/daily-digest/EditEditionModal';
 
 export const DailyDigestPage: React.FC = () => {
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Civil Procedure Code');
-  const [ratioText, setRatioText] = useState('');
+  const [editions, setEditions] = useState<DailyLegalDigestEdition[]>([]);
+  const [stats, setStats] = useState<DailyDigestAdminStats>({
+    totalEditions: 0,
+    publishedCount: 0,
+    draftCount: 0,
+    scheduledCount: 0,
+    totalReads: 0,
+    totalBookmarks: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
-  const handlePublish = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !ratioText) {
-      toast.error('Please enter title and ratio summary');
-      return;
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Filters
+  const [filters, setFilters] = useState<DailyDigestAdminFilterParams>({
+    status: 'all',
+    search: '',
+    year: 'all',
+    sort: 'newest',
+    page: 1,
+    limit: 10,
+  });
+
+  // Modal State
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingEditionId, setEditingEditionId] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetchAllEditionsAdmin(filters);
+      if (res.success) {
+        setEditions(res.editions);
+        setStats(res.stats);
+        setTotalCount(res.total);
+        setTotalPages(res.totalPages);
+        setPage(res.page);
+      }
+    } catch (err: any) {
+      console.error('Failed to load daily digest admin editions:', err);
+    } finally {
+      setLoading(false);
     }
-    toast.success(
-      <div>
-        <div className="font-semibold text-[#F7F3E6]">Daily Legal Digest Published to Student Classroom Portals</div>
-        <div className="text-xs text-[#A8A294] mt-0.5">"{title}" has been broadcast to all enrolled cohorts.</div>
-      </div>
-    );
-    setTitle('');
-    setRatioText('');
+  }, [filters]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleFilterChange = (newFilters: Partial<DailyDigestAdminFilterParams>) => {
+    setFilters((prev) => ({
+      ...prev,
+      ...newFilters,
+      page: newFilters.page !== undefined ? newFilters.page : 1,
+    }));
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      status: 'all',
+      search: '',
+      year: 'all',
+      sort: 'newest',
+      page: 1,
+      limit: 10,
+    });
   };
 
   return (
-    <div className="space-y-6 select-none">
-      {/* Header */}
-      <div className="p-6 sm:p-8 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-1">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-          <Newspaper className="w-3.5 h-3.5" />
-          <span>Judicial Ratio Decidendi Desk</span>
+    <div className="space-y-6 select-none animate-in fade-in duration-200">
+      {/* Page Header */}
+      <div className="p-6 sm:p-8 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C19B48]/15 border border-[#C19B48]/30 text-[#C19B48] text-xs font-semibold">
+            <Newspaper className="w-3.5 h-3.5" />
+            <span>Judicial Ratio Decidendi Desk</span>
+          </div>
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#F7F3E6]">
+            Daily Legal Digest CMS & Case Briefs
+          </h1>
+          <p className="text-xs text-[#A8A294] max-w-2xl leading-relaxed">
+            Curate and publish morning landmark ratios, Bare Act amendment updates, and high-yield case summaries directly to the student dashboard.
+          </p>
         </div>
-        <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#F7F3E6]">
-          Daily Legal Digest CMS & Case Briefs
-        </h1>
-        <p className="text-xs text-[#A8A294] max-w-2xl leading-relaxed">
-          Curate and publish morning landmark ratios, Bare Act amendment updates, and high-yield case summaries directly to the student dashboard.
-        </p>
+
+        <button
+          onClick={() => setCreateModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C19B48] hover:bg-[#D8B862] text-[#1E1E1E] text-xs font-bold transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-md"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Compose New Edition</span>
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Publisher Form */}
-        <div className="lg:col-span-2 space-y-4">
-          <form onSubmit={handlePublish} className="p-6 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-4">
-            <h3 className="font-serif text-base font-bold text-[#F7F3E6] border-b border-[#3D3D3D] pb-2 flex items-center justify-between">
-              <span>Publish Tomorrow's Morning Brief</span>
-              <span className="text-xs text-[#C19B48]">Goes Live at 06:00 AM</span>
-            </h3>
-
-            <div className="space-y-1.5 text-xs">
-              <label className="text-[#A8A294] font-medium">Digest Headline / Legal Issue</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Scope of Inherent Powers under Section 151 CPC"
-                className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294] focus:outline-hidden focus:border-[#C19B48]"
-              />
+      {/* 4 Live KPI Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Editions */}
+        <div className="p-5 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[#A8A294]">Total Editions</span>
+            <div className="p-2 rounded-xl bg-[#C19B48]/15 text-[#C19B48]">
+              <BookOpen className="w-4 h-4" />
             </div>
-
-            <div className="space-y-1.5 text-xs">
-              <label className="text-[#A8A294] font-medium">Bare Act / Subject Tag</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] focus:outline-hidden focus:border-[#C19B48] cursor-pointer"
-              >
-                <option value="Civil Procedure Code">Civil Procedure Code (CPC)</option>
-                <option value="BNSS">BNSS (Criminal Procedure)</option>
-                <option value="BNS">Bharatiya Nyaya Sanhita (BNS)</option>
-                <option value="BSA">Bharatiya Sakshya Adhiniyam (BSA)</option>
-                <option value="Constitutional Law">Constitutional Law</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5 text-xs">
-              <label className="text-[#A8A294] font-medium">Ratio Decidendi / 3-Point Summary</label>
-              <textarea
-                rows={4}
-                value={ratioText}
-                onChange={(e) => setRatioText(e.target.value)}
-                placeholder="Cite landmark precedent, facts, and the held ratio that students should memorize for Mains..."
-                className="w-full px-3.5 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-[#F7F3E6] placeholder-[#A8A294] focus:outline-hidden focus:border-[#C19B48]"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-[11px] text-[#A8A294]">
-                Author will be tagged as: <strong className="text-[#F7F3E6]">Adv. Rajinder Sir</strong>
-              </span>
-              <button
-                type="submit"
-                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#C19B48] hover:bg-[#D8B862] text-[#1E1E1E] text-xs font-bold transition-colors cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Publish Daily Digest</span>
-              </button>
-            </div>
-          </form>
+          </div>
+          <p className="font-mono text-2xl sm:text-3xl font-bold text-[#F7F3E6]">
+            {stats.totalEditions}
+          </p>
+          <span className="text-[10px] text-[#A8A294] block">Archived & Active Editions</span>
         </div>
 
-        {/* Right 1 Col: Past Digests */}
-        <div className="space-y-4">
-          <div className="p-6 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-4">
-            <h3 className="font-serif text-base font-bold text-[#F7F3E6] border-b border-[#3D3D3D] pb-2">
-              Recent Broadcast History
-            </h3>
-            <div className="space-y-3">
-              {PAST_DIGESTS.map((digest) => (
-                <div
-                  key={digest.id}
-                  className="p-3.5 rounded-xl bg-[#262626] border border-[#3D3D3D] hover:border-[#C19B48]/40 transition-colors space-y-2"
-                >
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-bold text-[#C19B48] bg-[#C19B48]/15 px-2 py-0.5 rounded">
-                      {digest.category}
-                    </span>
-                    <span className="text-[#A8A294]">{digest.publishDate}</span>
-                  </div>
-                  <h4 className="text-xs font-bold text-[#F7F3E6] leading-snug">
-                    {digest.title}
-                  </h4>
-                  <p className="text-[11px] text-[#A8A294] line-clamp-2">
-                    {digest.ratioSummary}
-                  </p>
-                  <div className="flex items-center justify-between text-[10px] text-[#A8A294] pt-1">
-                    <span>{digest.author}</span>
-                    <span className="text-[#34D399] font-semibold">{digest.readsCount} reads</span>
-                  </div>
-                </div>
-              ))}
+        {/* Published in Portals */}
+        <div className="p-5 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[#A8A294]">Published in Portals</span>
+            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400">
+              <CheckCircle className="w-4 h-4" />
             </div>
+          </div>
+          <p className="font-mono text-2xl sm:text-3xl font-bold text-emerald-400">
+            {stats.publishedCount}
+          </p>
+          <span className="text-[10px] text-[#A8A294] block">Live in Student Classrooms</span>
+        </div>
+
+        {/* Scheduled Broadcasts */}
+        <div className="p-5 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[#A8A294]">Scheduled Broadcasts</span>
+            <div className="p-2 rounded-xl bg-blue-500/15 text-blue-400">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="font-mono text-2xl sm:text-3xl font-bold text-blue-400">
+            {stats.scheduledCount}
+          </p>
+          <span className="text-[10px] text-[#A8A294] block">Queued for Morning Broadcast</span>
+        </div>
+
+        {/* Total Aspirant Reads */}
+        <div className="p-5 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-[#A8A294]">Total Aspirant Reads</span>
+            <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+              <Sparkles className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="font-mono text-2xl sm:text-3xl font-bold text-amber-400">
+            {stats.totalReads}
+          </p>
+          <span className="text-[10px] text-[#A8A294] block">
+            Across {stats.totalBookmarks} bookmarked items
+          </span>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] space-y-3">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-[#A8A294] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={filters.search || ''}
+              onChange={(e) => handleFilterChange({ search: e.target.value, page: 1 })}
+              placeholder="Search by edition date (YYYY-MM-DD), title, legal maxim, or case..."
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#262626] border border-[#3D3D3D] text-xs text-[#F7F3E6] placeholder-[#A8A294]/60 focus:outline-none focus:border-[#C19B48]"
+            />
+          </div>
+
+          {/* Reset Filters */}
+          <button
+            onClick={handleResetFilters}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#262626] hover:bg-[#3D3D3D] text-[#A8A294] hover:text-[#F7F3E6] text-xs font-semibold transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset</span>
+          </button>
+        </div>
+
+        {/* Dropdown Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          {/* Status Filter */}
+          <div>
+            <label className="block text-[10px] font-semibold text-[#A8A294] mb-1">Status</label>
+            <select
+              value={filters.status || 'all'}
+              onChange={(e) => handleFilterChange({ status: e.target.value, page: 1 })}
+              className="w-full px-2.5 py-1.5 rounded-xl bg-[#262626] border border-[#3D3D3D] text-xs text-[#F7F3E6] focus:outline-none focus:border-[#C19B48]"
+            >
+              <option value="all">All Statuses</option>
+              <option value="published">Published Only</option>
+              <option value="scheduled">Scheduled Only</option>
+              <option value="draft">Drafts Only</option>
+              <option value="archived">Archived Only</option>
+            </select>
+          </div>
+
+          {/* Year Filter */}
+          <div>
+            <label className="block text-[10px] font-semibold text-[#A8A294] mb-1">Year</label>
+            <select
+              value={filters.year || 'all'}
+              onChange={(e) => handleFilterChange({ year: e.target.value, page: 1 })}
+              className="w-full px-2.5 py-1.5 rounded-xl bg-[#262626] border border-[#3D3D3D] text-xs text-[#F7F3E6] focus:outline-none focus:border-[#C19B48]"
+            >
+              <option value="all">All Years</option>
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+            </select>
+          </div>
+
+          {/* Sort Order */}
+          <div>
+            <label className="block text-[10px] font-semibold text-[#A8A294] mb-1">Sort Order</label>
+            <select
+              value={filters.sort || 'newest'}
+              onChange={(e) => handleFilterChange({ sort: e.target.value as any, page: 1 })}
+              className="w-full px-2.5 py-1.5 rounded-xl bg-[#262626] border border-[#3D3D3D] text-xs text-[#F7F3E6] focus:outline-none focus:border-[#C19B48]"
+            >
+              <option value="newest">Newest Date First</option>
+              <option value="oldest">Oldest Date First</option>
+              <option value="popular">Most Student Reads</option>
+            </select>
           </div>
         </div>
       </div>
+
+      {/* Editions Table */}
+      {loading ? (
+        <div className="p-12 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D] flex flex-col items-center justify-center gap-3 text-[#A8A294]">
+          <Loader2 className="w-7 h-7 animate-spin text-[#C19B48]" />
+          <p className="text-xs font-medium">Loading Daily Legal Digest editions...</p>
+        </div>
+      ) : (
+        <EditionAdminTable
+          editions={editions}
+          onRefresh={loadData}
+          onEdit={(ed) => setEditingEditionId(ed._id)}
+        />
+      )}
+
+      {/* Pagination Bar */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-[#1E1E1E] border border-[#3D3D3D]">
+          <span className="text-xs text-[#A8A294]">
+            Showing <strong className="text-[#F7F3E6]">{editions.length}</strong> of{' '}
+            <strong className="text-[#F7F3E6]">{totalCount}</strong> editions (Page {page} of{' '}
+            {totalPages})
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleFilterChange({ page: page - 1 })}
+              disabled={page <= 1}
+              className="p-2 rounded-lg bg-[#262626] text-[#A8A294] hover:text-[#F7F3E6] disabled:opacity-40 transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                onClick={() => handleFilterChange({ page: p })}
+                className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  p === page
+                    ? 'bg-[#C19B48] text-[#1E1E1E]'
+                    : 'bg-[#262626] text-[#A8A294] hover:text-[#F7F3E6]'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+
+            <button
+              onClick={() => handleFilterChange({ page: page + 1 })}
+              disabled={page >= totalPages}
+              className="p-2 rounded-lg bg-[#262626] text-[#A8A294] hover:text-[#F7F3E6] disabled:opacity-40 transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Modal */}
+      <CreateEditionModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onSuccess={loadData}
+      />
+
+      {/* Edit Modal */}
+      <EditEditionModal
+        isOpen={!!editingEditionId}
+        editionId={editingEditionId}
+        onClose={() => setEditingEditionId(null)}
+        onSuccess={loadData}
+      />
     </div>
   );
 };

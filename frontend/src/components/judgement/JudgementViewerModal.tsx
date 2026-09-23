@@ -18,7 +18,9 @@ import {
   getJudgementDirectStreamUrl,
   downloadJudgementPdf,
 } from '../../services/judgement.service';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
+import { BottomSheet } from '../ui/BottomSheet';
+import { DocumentViewerSkeleton } from '../ui/skeleton';
 
 interface JudgementViewerModalProps {
   judgement: JudgementDigest | null;
@@ -40,6 +42,7 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showNotesDrawer, setShowNotesDrawer] = useState(false);
+  const [isMobileNotesOpen, setIsMobileNotesOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
       setError(null);
       setZoomLevel(100);
       setShowNotesDrawer(false);
+      setIsMobileNotesOpen(false);
       return;
     }
 
@@ -98,6 +102,10 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
   if (!isOpen || !judgement) return null;
 
   const handleDownload = async () => {
+    if (!judgement.pdfFile) {
+      toast.info('No PDF document attached to this digest.');
+      return;
+    }
     try {
       setDownloading(true);
       await downloadJudgementPdf(judgement._id, judgement.pdfFile.originalName);
@@ -157,7 +165,7 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
 
           {/* Action Toolbar */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Toggle Ratio / Headnote Drawer */}
+            {/* Desktop Exam Notes Toggle */}
             <button
               onClick={() => setShowNotesDrawer(!showNotesDrawer)}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer hidden md:flex items-center gap-1.5 ${
@@ -168,6 +176,15 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
             >
               <Award className="w-3.5 h-3.5" />
               <span>{showNotesDrawer ? 'Hide Notes' : 'Exam Notes'}</span>
+            </button>
+
+            {/* Mobile Exam Notes Button (< 768px) */}
+            <button
+              onClick={() => setIsMobileNotesOpen(true)}
+              className="md:hidden p-2 rounded-lg bg-[#c19b48]/20 border border-[#c19b48]/40 text-[#c19b48] hover:text-white transition-colors cursor-pointer"
+              title="View Exam Notes & Ratio"
+            >
+              <Award className="w-3.5 h-3.5" />
             </button>
 
             {/* Zoom Controls */}
@@ -197,16 +214,16 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
               </button>
             </div>
 
-            {/* Pop-out New Tab */}
+            {/* Pop-out New Tab (Desktop/Tablet) */}
             <button
               onClick={openInNewTab}
-              className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition-colors"
+              className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition-colors hidden sm:block"
               title="Open in new window"
             >
               <ExternalLink className="w-4 h-4" />
             </button>
 
-            {/* Fullscreen Toggle */}
+            {/* Fullscreen Toggle (Desktop/Tablet) */}
             <button
               onClick={toggleFullscreen}
               className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition-colors hidden sm:block"
@@ -240,12 +257,7 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
         <div className="relative flex-1 bg-slate-950 overflow-hidden flex">
           {/* Main PDF Frame */}
           <div className="flex-1 relative flex items-center justify-center overflow-auto p-2">
-            {loading && (
-              <div className="flex flex-col items-center justify-center gap-3 text-slate-400">
-                <Loader2 className="w-8 h-8 animate-spin text-[#c19b48]" />
-                <p className="text-sm font-medium">Streaming Judgement Digest PDF...</p>
-              </div>
-            )}
+            {loading && <DocumentViewerSkeleton />}
 
             {error && (
               <div className="flex flex-col items-center justify-center gap-3 text-red-400 p-6 text-center max-w-md">
@@ -326,6 +338,59 @@ export const JudgementViewerModal: React.FC<JudgementViewerModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Mobile Exam Notes BottomSheet (< 768px) */}
+      <BottomSheet
+        isOpen={isMobileNotesOpen}
+        onClose={() => setIsMobileNotesOpen(false)}
+        title="Exam Notes & Legal Ratio"
+        subtitle={`${judgement.citation} • ${judgement.court}`}
+      >
+        <div className="space-y-4 text-xs pb-4">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#c19b48]">
+              Mains 3-Point Ratio
+            </span>
+            <ul className="mt-2 space-y-2.5">
+              {judgement.ratioDecidendi?.map((point, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
+                  <span className="font-mono text-[#c19b48] font-bold">[{idx + 1}]</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {judgement.mainsUtility && (
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                Mains Exam Utility
+              </span>
+              <p className="mt-1 text-slate-700 dark:text-slate-300 leading-relaxed">{judgement.mainsUtility}</p>
+            </div>
+          )}
+
+          {judgement.overruledPrecedents && (
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                Overruled Precedents
+              </span>
+              <p className="mt-1 text-slate-700 dark:text-slate-300 leading-relaxed">{judgement.overruledPrecedents}</p>
+            </div>
+          )}
+
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Judges on Coram
+            </span>
+            <p className="mt-1 text-slate-600 dark:text-slate-400 leading-relaxed">
+              {judgement.judges && judgement.judges.length > 0
+                ? judgement.judges.join(', ')
+                : 'Coram information available in full text.'}
+            </p>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 };

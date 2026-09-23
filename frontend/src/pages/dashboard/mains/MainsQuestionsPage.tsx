@@ -1,127 +1,883 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PenTool,
   Clock,
   BookOpen,
-  Send,
+  UploadCloud,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  Download,
+  AlertCircle,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+  X,
+  History,
+  Search,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../../lib/toast';
+import { CustomSelect } from '../../../components/ui/CustomSelect';
+import { MainsChallengeSkeleton, MainsArchiveCardSkeleton } from '../../../components/ui/skeleton';
+import {
+  fetchTodayChallenge,
+  fetchChallengeArchive,
+  fetchQuestionById,
+  submitAnswerCopy,
+  downloadSubmissionPdf,
+} from '../../../services/mains.service';
+import type {
+  MainsQuestion,
+  MainsSubmission,
+  MainsStreakInfo,
+  DeadlineInfo,
+} from '../../../types/mains.types';
+
+const ARCHIVE_PAPER_OPTIONS = [
+  { value: 'all', label: 'All Papers' },
+  { value: 'Criminal Law & Procedure (Mains)', label: 'Criminal Law & Procedure' },
+  { value: 'Civil Law & Procedure (Mains)', label: 'Civil Law & Procedure' },
+  { value: 'Constitutional Law', label: 'Constitutional Law' },
+  { value: 'Commercial & Corporate Laws', label: 'Commercial Laws' },
+];
 
 export const MainsQuestionsPage: React.FC = () => {
-  const [draftAnswer, setDraftAnswer] = useState('');
+  const navigate = useNavigate();
 
-  const wordCount = draftAnswer.trim() ? draftAnswer.trim().split(/\s+/).length : 0;
+  // Active Tab: 'today' | 'archive'
+  const [activeTab, setActiveTab] = useState<'today' | 'archive'>('today');
 
-  const handleSubmitDraft = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (wordCount < 50) {
-      toast.error('Draft is too brief. Judicial mains answers require at least 150-250 words.');
+  // Today's Challenge State
+  const [question, setQuestion] = useState<MainsQuestion | null>(null);
+  const [existingSubmission, setExistingSubmission] = useState<MainsSubmission | null>(null);
+  const [streak, setStreak] = useState<MainsStreakInfo | null>(null);
+  const [deadlineInfo, setDeadlineInfo] = useState<DeadlineInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Upload State (Supports PDF or multiple images)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [studentNotes, setStudentNotes] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showReplaceForm, setShowReplaceForm] = useState(false);
+
+  // Optional typed draft workspace toggle
+  const [showDraftCanvas, setShowDraftCanvas] = useState(false);
+  const [draftText, setDraftText] = useState('');
+
+  // Past Archive State
+  const [archiveQuestions, setArchiveQuestions] = useState<MainsQuestion[]>([]);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archivePage, setArchivePage] = useState(1);
+  const [archiveSearch, setArchiveSearch] = useState('');
+  const [archivePaper, setArchivePaper] = useState('all');
+  const [isLoadingArchive, setIsLoadingArchive] = useState(false);
+
+  // Archive Question View Modal
+  const [selectedArchiveQuestion, setSelectedArchiveQuestion] = useState<MainsQuestion | null>(null);
+  const [, setIsLoadingDetail] = useState(false);
+
+  // Fetch active question and student's submission status
+  const loadTodayData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetchTodayChallenge();
+      if (res.success) {
+        setQuestion(res.question);
+        setExistingSubmission(res.submission);
+        setStreak(res.streak || null);
+        setDeadlineInfo(res.deadlineInfo || null);
+      }
+    } catch {
+      toast.error('Failed to load today’s Daily Mains question.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch past challenges archive
+  const loadArchiveData = useCallback(async () => {
+    try {
+      setIsLoadingArchive(true);
+      const res = await fetchChallengeArchive({
+        search: archiveSearch,
+        paper: archivePaper,
+        page: archivePage,
+        limit: 12,
+      });
+      if (res.success) {
+        setArchiveQuestions(res.questions);
+        setArchiveTotal(res.totalCount);
+      }
+    } catch {
+      toast.error('Failed to load past challenges archive.');
+    } finally {
+      setIsLoadingArchive(false);
+    }
+  }, [archiveSearch, archivePaper, archivePage]);
+
+  useEffect(() => {
+    if (activeTab === 'today') {
+      loadTodayData();
+    } else {
+      loadArchiveData();
+    }
+  }, [activeTab, loadTodayData, loadArchiveData]);
+
+  // File Handlers
+  const handleFilesAdded = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const newFiles = Array.from(files);
+    // Check if mixing PDF and images
+    const hasPdf = newFiles.some((f) => f.type === 'application/pdf');
+    const hasImage = newFiles.some((f) => f.type.startsWith('image/'));
+
+    if (hasPdf && hasImage) {
+      toast.error('Please select either a single PDF document OR scanned page images.');
       return;
     }
-    toast.success('Mains draft saved! Proceed to PDF upload or await mentor review.', {
-      duration: 4000,
-    });
+
+    if (hasPdf) {
+      // Allow single PDF
+      setSelectedFiles([newFiles[0]!]);
+      toast.success(`PDF selected: ${newFiles[0]!.name}`);
+    } else {
+      // Multiple images allowed (up to 10)
+      const validImages = newFiles.filter((f) => f.type.startsWith('image/'));
+      const combined = [...selectedFiles.filter((f) => f.type.startsWith('image/')), ...validImages].slice(0, 10);
+      setSelectedFiles(combined);
+      toast.success(`${combined.length} page image(s) attached.`);
+    }
   };
 
+  const handleFileDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    handleFilesAdded(e.dataTransfer.files);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFilesAdded(e.target.files);
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleSubmitCopy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!question) return;
+
+    if (selectedFiles.length === 0) {
+      toast.error('Please attach your scanned PDF or page images first.');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      const notesCombined = studentNotes || draftText ? `${studentNotes}\n${draftText}`.trim() : undefined;
+      const res = await submitAnswerCopy(
+        question._id,
+        selectedFiles,
+        notesCombined,
+        (percent) => setUploadProgress(percent)
+      );
+
+      if (res.success) {
+        toast.success(res.message || 'Answer Copy uploaded successfully!', {
+          description: 'Assigned to Adv. Rajinder Sir for evaluation.',
+          duration: 5000,
+        });
+        setExistingSubmission(res.submission);
+        setSelectedFiles([]);
+        setStudentNotes('');
+        setShowReplaceForm(false);
+        // Refresh streak and countdown
+        loadTodayData();
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to submit answer copy.');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleDownloadCopy = async (sub: MainsSubmission) => {
+    try {
+      await downloadSubmissionPdf(sub._id, 'student', sub.studentPdf?.originalName || 'answer_copy.pdf');
+      toast.success('Downloaded submitted answer copy.');
+    } catch {
+      toast.error('Failed to download copy.');
+    }
+  };
+
+  const handleOpenArchiveModal = async (q: MainsQuestion) => {
+    try {
+      setIsLoadingDetail(true);
+      setSelectedArchiveQuestion(q);
+      const res = await fetchQuestionById(q._id);
+      if (res.success && res.question) {
+        setSelectedArchiveQuestion(res.question);
+      }
+    } catch {
+      // keep initial question
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  const wordCount = draftText.trim() ? draftText.trim().split(/\s+/).length : 0;
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564]">
+    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200 pb-16">
+      {/* 1. Top Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
             <PenTool className="w-3.5 h-3.5" />
             <span>Daily Answer Writing (DAW) Clinic</span>
+            {streak && streak.currentStreak > 0 && (
+              <span className="ml-1 px-2 py-0.2 rounded-full bg-[#c19b48] text-[#061120] text-[10px] font-bold">
+                🔥 {streak.currentStreak} Day Streak
+              </span>
+            )}
           </div>
           <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Daily Mains Problem & Legal Drafting
+            Daily Mains Problem & Evaluation
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Build judicial writing discipline with structured daily problems evaluated by Rajinder Sir.
+            Attempt daily judicial problems under exam-like deadlines and receive line-by-line marginal feedback from Adv. Rajinder Sir.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" />
-            <span>Submission Deadline: 10:00 PM Today</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Today's Mains Problem Card */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-[#143564]">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#c19b48] uppercase tracking-wider">
-              Civil Law I (CPC & Specific Relief Act)
-            </span>
-            <span className="text-slate-400">•</span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">Question ID: DAW-2025-084</span>
-          </div>
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-[#0a1c36] dark:bg-[#143564] text-white">
-            20 Marks • Word Limit: 300-350 Words
-          </span>
-        </div>
-
-        {/* Problem Statement */}
-        <div className="space-y-3">
-          <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white leading-snug">
-            Q. Discuss the scope and principles governing the doctrine of Res Sub Judice under Section 10 of the Code of Civil Procedure, 1908. Does the pendency of a previously instituted suit in a Foreign Court bar a court in India from trying a subsequent suit on identical cause of action? Cite relevant case law.
-          </h3>
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            Candidates must address: (i) Essential pre-conditions for invoking Section 10; (ii) Test of identity of matter in issue; (iii) Power to grant interim injunctions during Section 10 stay; (iv) The statutory exception provided under the Explanation to Section 10 regarding Foreign Courts.
-          </p>
-        </div>
-
-        {/* Model Outline Guide */}
-        <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] space-y-2">
-          <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-            <BookOpen className="w-3.5 h-3.5 text-[#c19b48]" />
-            <span>Recommended Headings & Structure</span>
-          </h4>
-          <ul className="text-xs text-slate-600 dark:text-slate-300 list-disc list-inside space-y-1">
-            <li><strong>Introduction:</strong> Purpose of Sec 10 to avoid conflicting decrees by courts of concurrent jurisdiction.</li>
-            <li><strong>Key Ingredients:</strong> Previously instituted vs subsequently instituted suit; same parties or litigating under same title; court competent to grant relief.</li>
-            <li><strong>Foreign Court Exception:</strong> Reference Explanation to Section 10 explicitly.</li>
-            <li><strong>Judicial Dictum:</strong> <em>National Institute of Mental Health v. C. Parameshwara (2005 SC)</em>.</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Interactive Answer Drafting Canvas */}
-      <form onSubmit={handleSubmitDraft} className="p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <PenTool className="w-4 h-4 text-[#c19b48]" />
-            <span>Direct Text Answer Workspace</span>
-          </h3>
-          <span className={`text-xs font-mono font-semibold ${wordCount > 350 ? 'text-amber-500' : 'text-slate-500 dark:text-slate-400'}`}>
-            {wordCount} / 350 Words
-          </span>
-        </div>
-
-        <textarea
-          rows={8}
-          value={draftAnswer}
-          onChange={(e) => setDraftAnswer(e.target.value)}
-          placeholder="Start typing your structured legal answer here (Introduction, Pre-conditions, Landmark Cases, Conclusion)..."
-          className="w-full p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs sm:text-sm font-normal text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48] leading-relaxed transition-all"
-        />
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Prefer handwritten answers? You can scan and upload your handwritten sheets via the PDF uploader.
-          </p>
-
+        <div className="flex items-center gap-3">
           <button
-            type="submit"
-            className="px-5 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs self-start sm:self-auto"
+            onClick={() => navigate('/dashboard/mains/evaluated')}
+            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white font-semibold text-xs transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-[#143564] cursor-pointer"
           >
-            <Send className="w-3.5 h-3.5" />
-            <span>Submit for Evaluation</span>
+            <span>Evaluated Copies & Remarks</span>
+            <ExternalLink className="w-3.5 h-3.5 text-[#c19b48]" />
           </button>
         </div>
-      </form>
+      </div>
+
+      {/* 2. Tabs Switcher */}
+      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-[#143564] pb-2">
+        <button
+          onClick={() => setActiveTab('today')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'today'
+              ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span>Today's Challenge</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('archive')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'archive'
+              ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <History className="w-3.5 h-3.5" />
+          <span>Past Challenges Archive</span>
+          {archiveTotal > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-[#143564] text-slate-700 dark:text-slate-300">
+              {archiveTotal}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* 3. TAB 1: TODAY'S CHALLENGE */}
+      {activeTab === 'today' && (
+        <div className="space-y-6">
+          {isLoading ? (
+            <MainsChallengeSkeleton />
+          ) : question ? (
+            <div className="space-y-6">
+              {/* Challenge Card */}
+              <div className="p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-[#143564]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs font-bold uppercase tracking-wider">
+                      Today's Mains Challenge #{question.challengeNumber ?? 48}
+                    </span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      {question.paper}
+                    </span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                      {question.questionCode}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-3 py-1 rounded-lg bg-[#0a1c36] dark:bg-[#143564] text-white">
+                      {question.marks} Marks • Max {question.wordLimit} Words
+                    </span>
+                    <span
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border ${
+                        deadlineInfo?.isPassed
+                          ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-500 border-slate-200 dark:border-slate-700'
+                          : 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-900/40'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{deadlineInfo?.formattedText || 'Due in 3h 45m (11:59 PM)'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Problem Statement */}
+                <div className="space-y-2">
+                  <p className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white leading-relaxed">
+                    "{question.title}"
+                  </p>
+                </div>
+
+                {/* Evaluator Commitment */}
+                <div className="pt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-[#143564]/60 flex-wrap gap-2">
+                  <span>
+                    Evaluator: <strong className="text-slate-800 dark:text-slate-200">{question.evaluatorName || 'Adv. Rajinder Sir'}</strong> • Detailed marginal feedback within {question.turnaroundHours ?? 24}h
+                  </span>
+                  <span className="text-[11px] text-[#c19b48] font-semibold">
+                    {question.totalSubmissionsCount ?? 0} Aspirants Submitted Today
+                  </span>
+                </div>
+
+                {/* Recommended Outline & Model Headings */}
+                {question.guidelines && question.guidelines.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] space-y-2 mt-4">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-[#c19b48]" />
+                      <span>Recommended Legal Headings & Structural Guidance:</span>
+                    </h4>
+                    <ul className="text-xs text-slate-600 dark:text-slate-300 list-disc list-inside space-y-1">
+                      {question.guidelines.map((guide, idx) => (
+                        <li key={idx}>{guide}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Submission Section */}
+              {existingSubmission && !showReplaceForm ? (
+                /* Already Submitted State */
+                <div className="p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs">
+                  <div className="flex items-center justify-between gap-4 flex-wrap pb-3 border-b border-slate-100 dark:border-[#143564]">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          existingSubmission.status === 'evaluated'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600'
+                            : 'bg-amber-50 dark:bg-amber-950/30 text-amber-600'
+                        }`}
+                      >
+                        {existingSubmission.status === 'evaluated' ? (
+                          <CheckCircle2 className="w-5 h-5" />
+                        ) : (
+                          <Clock className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
+                            {existingSubmission.status === 'evaluated'
+                              ? 'Answer Copy Evaluated by Faculty!'
+                              : `Answer Copy Submitted (v${existingSubmission.version || 1})`}
+                          </h3>
+                          {existingSubmission.isLate && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-950/30 text-red-600 border border-red-200 dark:border-red-800">
+                              Late Submission
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Submitted on{' '}
+                          {new Date(existingSubmission.submittedAt).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {existingSubmission.status === 'evaluated' ? (
+                        <button
+                          onClick={() => navigate('/dashboard/mains/evaluated')}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                        >
+                          <span>View Marks & Autopsy</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-500/15 text-[#c19b48] border border-amber-200 dark:border-[#c19b48]/30">
+                            Under Faculty Evaluation
+                          </span>
+                          {!deadlineInfo?.isPassed && (
+                            <button
+                              type="button"
+                              onClick={() => setShowReplaceForm(true)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-[#143564] hover:bg-slate-300 dark:hover:bg-[#143564]/80 text-slate-800 dark:text-white text-xs font-semibold transition-colors cursor-pointer"
+                            >
+                              Replace Copy (v{(existingSubmission.version || 1) + 1})
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Submitted File Info */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="w-5 h-5 text-[#c19b48]" />
+                      <div>
+                        <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate max-w-xs sm:max-w-md">
+                          {existingSubmission.studentPdf?.originalName || 'Answer Copy'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {existingSubmission.studentPdf?.sizeFormatted || 'Uploaded'} • {existingSubmission.fileType === 'images' ? 'Scanned Page Images' : 'PDF Document'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCopy(existingSubmission)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-[#143564] hover:bg-slate-300 dark:hover:bg-[#143564]/80 text-slate-800 dark:text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download Submitted Copy</span>
+                    </button>
+                  </div>
+
+                  {/* Previous Revisions */}
+                  {existingSubmission.revisionHistory && existingSubmission.revisionHistory.length > 0 && (
+                    <div className="text-[11px] text-slate-400">
+                      <span>Previous versions archived: </span>
+                      {existingSubmission.revisionHistory.map((rev, idx) => (
+                        <span key={idx} className="font-mono text-[#c19b48] mr-2">
+                          v{rev.version} ({new Date(rev.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                    {existingSubmission.status === 'evaluated'
+                      ? 'Your marks and margin annotations have been posted to Evaluated Copies.'
+                      : 'Adv. Rajinder Sir reviews handwritten copies line-by-line within 24 hours.'}
+                  </p>
+                </div>
+              ) : (
+                /* Upload / Replacement Form */
+                <form
+                  onSubmit={handleSubmitCopy}
+                  className="p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-5 shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <UploadCloud className="w-5 h-5 text-[#c19b48]" />
+                        <span>
+                          {showReplaceForm
+                            ? `Replace Answer Copy (v${(existingSubmission?.version || 1) + 1})`
+                            : 'Submit Handwritten Answer Sheet (PDF or Scanned Images)'}
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Write your answer on standard ruled judicial booklets, scan clearly, and upload as a PDF or multi-page image scan.
+                      </p>
+                    </div>
+
+                    {showReplaceForm && (
+                      <button
+                        type="button"
+                        onClick={() => setShowReplaceForm(false)}
+                        className="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                      >
+                        Cancel Replacement
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Drag & Drop Zone */}
+                  <div>
+                    <label
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleFileDrop}
+                      className="border-2 border-dashed border-slate-300 dark:border-[#143564] hover:border-[#c19b48] rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors group bg-slate-50/50 dark:bg-[#061120]/40"
+                    >
+                      <UploadCloud className="w-10 h-10 text-[#c19b48] group-hover:scale-110 transition-transform mb-3" />
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        {selectedFiles.length > 0
+                          ? `${selectedFiles.length} file(s) selected`
+                          : 'Click to select or drag scanned PDF / page images here'}
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        Accepted formats: PDF document (up to 35 MB) or up to 10 JPG/PNG page scans.
+                      </span>
+                      <input
+                        type="file"
+                        accept="application/pdf,image/jpeg,image/png,image/webp"
+                        multiple
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Selected Files List Preview */}
+                    {selectedFiles.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selectedFiles.map((file, idx) => (
+                          <div
+                            key={idx}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs"
+                          >
+                            {file.type === 'application/pdf' ? (
+                              <FileText className="w-4 h-4 text-red-500" />
+                            ) : (
+                              <ImageIcon className="w-4 h-4 text-emerald-500" />
+                            )}
+                            <span className="text-slate-800 dark:text-slate-200 font-medium truncate max-w-[160px]">
+                              {file.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(idx)}
+                              className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                              title="Remove file"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submission Notes */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Aspirant's Submission Notes & Timed Duration (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={studentNotes}
+                      onChange={(e) => setStudentNotes(e.target.value)}
+                      placeholder="e.g. Attempted in 18 minutes. Focused on Kathi Kalu Oghad and Section 23 BSA."
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48]"
+                    />
+                  </div>
+
+                  {/* Collapsible Draft Workspace */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDraftCanvas(!showDraftCanvas)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#c19b48] hover:underline cursor-pointer"
+                    >
+                      {showDraftCanvas ? (
+                        <>
+                          <ChevronUp className="w-3.5 h-3.5" />
+                          <span>Hide Typed Legal Synopsis</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-3.5 h-3.5" />
+                          <span>Attach Typed Synopsis / Key Authorities</span>
+                        </>
+                      )}
+                    </button>
+
+                    {showDraftCanvas && (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span>Synopsis Workspace</span>
+                          <span>{wordCount} / {question.wordLimit} Words</span>
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={draftText}
+                          onChange={(e) => setDraftText(e.target.value)}
+                          placeholder="Optional: Outline main propositions or landmark authorities here..."
+                          className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Upload Progress Bar */}
+                  {isUploading && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>Uploading answer copy...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#c19b48] transition-all duration-150"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Action */}
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>
+                        {showReplaceForm
+                          ? 'Replacing this submission will archive your earlier copy.'
+                          : 'You can update or replace your answer copy anytime before the deadline.'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isUploading || selectedFiles.length === 0}
+                      className="px-6 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <UploadCloud className="w-4 h-4" />
+                      )}
+                      <span>
+                        {showReplaceForm
+                          ? `Publish Replacement (v${(existingSubmission?.version || 1) + 1})`
+                          : 'Submit Copy for Faculty Evaluation'}
+                      </span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-white dark:bg-[#0a1c36] rounded-2xl border border-slate-200 dark:border-[#143564]">
+              <p className="text-xs text-slate-400">No active Daily Mains Question found at this moment.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. TAB 2: PAST CHALLENGES ARCHIVE */}
+      {activeTab === 'archive' && (
+        <div className="space-y-6">
+          {/* Filter Bar */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={archiveSearch}
+                onChange={(e) => {
+                  setArchiveSearch(e.target.value);
+                  setArchivePage(1);
+                }}
+                placeholder="Search by code, legal doctrine, or problem statement..."
+                className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <CustomSelect
+                value={archivePaper}
+                onChange={(val) => {
+                  setArchivePaper(val);
+                  setArchivePage(1);
+                }}
+                options={ARCHIVE_PAPER_OPTIONS}
+                sheetTitle="Filter by Paper"
+                className="flex-1 sm:w-60"
+              />
+
+              <button
+                onClick={loadArchiveData}
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564] transition-colors cursor-pointer shrink-0"
+                title="Refresh Archive"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingArchive ? 'animate-spin text-[#c19b48]' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Grid */}
+          {isLoadingArchive && archiveQuestions.length === 0 ? (
+            <MainsArchiveCardSkeleton count={4} />
+          ) : archiveQuestions.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {archiveQuestions.map((q) => (
+                <div
+                  key={q._id}
+                  className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all flex flex-col justify-between space-y-4 shadow-xs"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-[#c19b48] bg-amber-50 dark:bg-[#c19b48]/15 px-2 py-0.5 rounded border border-[#c19b48]/30">
+                          #{q.challengeNumber ?? 0}
+                        </span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          {q.paper}
+                        </span>
+                      </div>
+
+                      {q.studentSubmission ? (
+                        q.studentSubmission.status === 'evaluated' ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            <span>Score: {q.studentSubmission.score}/{q.studentSubmission.maxScore}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-200 dark:border-amber-800">
+                            Submitted
+                          </span>
+                        )
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">
+                          Not Attempted
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs sm:text-sm font-serif font-bold text-slate-900 dark:text-white line-clamp-3 leading-relaxed">
+                      "{q.title}"
+                    </p>
+
+                    <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>{q.subject}</span>
+                      <span>•</span>
+                      <span>{q.marks} Marks</span>
+                      <span>•</span>
+                      <span>{q.wordLimit} Words</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 dark:border-[#143564] flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">
+                      {q.challengeDate ? new Date(q.challengeDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenArchiveModal(q)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer border border-slate-200 dark:border-[#143564]"
+                    >
+                      {q.isModelAnswerRevealed ? 'View Question & Model Answer →' : 'View Question Details →'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-12 text-center bg-white dark:bg-[#0a1c36] rounded-2xl border border-slate-200 dark:border-[#143564]">
+              <p className="text-xs text-slate-400">No past challenges found matching your filters.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5. MODAL: VIEW ARCHIVE CHALLENGE & MODEL ANSWER */}
+      {selectedArchiveQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="max-w-2xl w-full max-h-[90dvh] overflow-y-auto rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] p-4 sm:p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#143564]">
+              <div>
+                <span className="text-xs font-bold text-[#c19b48] uppercase tracking-wider">
+                  Challenge #{selectedArchiveQuestion.challengeNumber} • {selectedArchiveQuestion.paper}
+                </span>
+                <h3 className="font-serif text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                  {selectedArchiveQuestion.questionCode}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedArchiveQuestion(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Problem Statement */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] space-y-2">
+              <span className="text-[11px] font-mono text-[#c19b48] font-bold block">
+                {selectedArchiveQuestion.marks} Marks • Max {selectedArchiveQuestion.wordLimit} Words
+              </span>
+              <p className="text-sm font-serif font-bold text-slate-900 dark:text-white leading-relaxed">
+                "{selectedArchiveQuestion.title}"
+              </p>
+            </div>
+
+            {/* Guidelines */}
+            {selectedArchiveQuestion.guidelines && selectedArchiveQuestion.guidelines.length > 0 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Recommended Headings & Structure:
+                </h4>
+                <ul className="text-xs text-slate-600 dark:text-slate-400 list-disc list-inside space-y-1">
+                  {selectedArchiveQuestion.guidelines.map((g, idx) => (
+                    <li key={idx}>{g}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Model Answer (if released) */}
+            {selectedArchiveQuestion.modelAnswer ? (
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Official Model Answer Synopsis by Adv. Rajinder Sir:</span>
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+                  {selectedArchiveQuestion.modelAnswer}
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] text-center text-xs text-slate-400">
+                <span>Model answer is released once faculty evaluation is complete.</span>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedArchiveQuestion(null)}
+                className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-[#143564] text-slate-800 dark:text-white font-bold text-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

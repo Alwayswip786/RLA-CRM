@@ -48,10 +48,18 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number }>({
-    top: 0,
+  const [menuPosition, setMenuPosition] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    minWidth: number;
+    maxWidth: number;
+    maxHeight: number;
+  }>({
     left: 0,
-    width: 0,
+    minWidth: 0,
+    maxWidth: 420,
+    maxHeight: 260,
   });
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -61,26 +69,56 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   // Selected Option Object
   const selectedOption = options.find((opt) => opt.value === value);
 
-  // Calculate and update desktop floating popover position
+  // Calculate and update desktop floating popover position using fixed viewport coordinates
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const menuHeight = 220; // estimated max height
-    const flip = spaceBelow < menuHeight && rect.top > menuHeight;
 
-    let top = rect.bottom + window.scrollY + 4;
-    if (flip) {
-      // Flip to above if not enough space below
-      top = rect.top + window.scrollY - menuHeight - 4;
+    // Auto-dismiss if trigger is scrolled completely out of visible viewport
+    if (rect.bottom < 60 || rect.top > window.innerHeight) {
+      setIsOpen(false);
+      return;
     }
 
-    setIsFlipped(flip);
-    setMenuPosition({
-      top,
-      left: rect.left + window.scrollX,
-      width: rect.width,
-    });
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const shouldFlip = spaceBelow < 200 && spaceAbove > spaceBelow;
+
+    // Fluid width with horizontal boundaries
+    const minWidth = rect.width;
+    let left = rect.left;
+    if (window.innerWidth - left < 260 && rect.right > 260) {
+      left = Math.max(16, rect.right - Math.min(380, rect.right - 16));
+    } else if (left + minWidth > window.innerWidth - 16) {
+      left = Math.max(16, window.innerWidth - 16 - minWidth);
+    }
+    if (left < 16) {
+      left = 16;
+    }
+    const maxWidth = Math.max(minWidth, Math.min(420, window.innerWidth - left - 16));
+
+    const availableHeight = Math.max(130, Math.min(260, (shouldFlip ? spaceAbove : spaceBelow) - 8));
+
+    setIsFlipped(shouldFlip);
+    if (shouldFlip) {
+      setMenuPosition({
+        bottom: window.innerHeight - rect.top + 4,
+        top: undefined,
+        left,
+        minWidth,
+        maxWidth,
+        maxHeight: availableHeight,
+      });
+    } else {
+      setMenuPosition({
+        top: rect.bottom + 4,
+        bottom: undefined,
+        left,
+        minWidth,
+        maxWidth,
+        maxHeight: availableHeight,
+      });
+    }
   }, []);
 
   // Update position synchronously on open, or via layout effect on scroll / resize
@@ -103,20 +141,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   const handleToggle = () => {
     if (disabled) return;
     if (!isOpen && isDesktop && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const menuHeight = 220;
-      const flip = spaceBelow < menuHeight && rect.top > menuHeight;
-      let top = rect.bottom + window.scrollY + 4;
-      if (flip) {
-        top = rect.top + window.scrollY - menuHeight - 4;
-      }
-      setIsFlipped(flip);
-      setMenuPosition({
-        top,
-        left: rect.left + window.scrollX,
-        width: rect.width,
-      });
+      updatePosition();
     }
     setIsOpen((prev) => !prev);
   };
@@ -203,6 +228,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         >
           {/* Selected Label or Placeholder */}
           <span
+            title={selectedOption ? selectedOption.label : placeholder}
             className={`truncate block pr-2 ${
               selectedOption ? 'text-slate-900 dark:text-white font-normal' : 'text-slate-400 dark:text-slate-500 font-normal'
             }`}
@@ -237,16 +263,19 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       {/* ---------------------------------------------------- */}
       {isDesktop &&
         isOpen &&
-        menuPosition.width > 0 &&
+        menuPosition.minWidth > 0 &&
         typeof document !== 'undefined' &&
         createPortal(
           <div
             ref={menuRef}
             style={{
-              position: 'absolute',
-              top: `${menuPosition.top}px`,
+              position: 'fixed',
+              top: menuPosition.top !== undefined ? `${menuPosition.top}px` : 'auto',
+              bottom: menuPosition.bottom !== undefined ? `${menuPosition.bottom}px` : 'auto',
               left: `${menuPosition.left}px`,
-              width: `${menuPosition.width}px`,
+              minWidth: `${menuPosition.minWidth}px`,
+              maxWidth: `${menuPosition.maxWidth}px`,
+              width: 'max-content',
             }}
             className={`z-[9999] bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] rounded-xl shadow-2xl overflow-hidden p-1 text-slate-900 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150 ${
               isFlipped ? 'origin-bottom' : 'origin-top'
@@ -269,7 +298,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             )}
 
             {/* Desktop Options List */}
-            <div className="max-h-52 overflow-y-auto no-scrollbar space-y-0.5 p-0.5">
+            <div
+              style={{ maxHeight: `${menuPosition.maxHeight}px` }}
+              className="overflow-y-auto no-scrollbar space-y-0.5 p-0.5"
+            >
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((opt) => {
                   const isSelected = opt.value === value;
@@ -277,6 +309,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                     <button
                       key={opt.value}
                       type="button"
+                      title={opt.label}
                       onClick={() => handleSelect(opt.value)}
                       className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer text-left ${
                         isSelected

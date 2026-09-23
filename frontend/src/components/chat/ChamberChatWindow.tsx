@@ -4,13 +4,11 @@ import {
   Check,
   CheckCheck,
   Loader2,
-  RefreshCw,
   MessageSquare,
   ShieldCheck,
-  Scale,
   Sparkles,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { apiClient } from '../../lib/apiClient';
 import {
   connectChamberSocket,
@@ -20,6 +18,7 @@ import {
   type ChamberSocket,
 } from '../../lib/socket';
 import type { ChatMessage, ChatConversation } from '../../types/doubt.types';
+import { ChatStreamSkeleton } from '../ui/skeleton';
 
 interface ChamberChatWindowProps {
   initialQueryContext?: {
@@ -271,17 +270,20 @@ export const ChamberChatWindow: React.FC<ChamberChatWindowProps> = ({
       {/* 1. Header */}
       <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-[#143564] bg-slate-50/70 dark:bg-[#061120] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0a1c36] to-[#143564] border border-[#c19b48]/40 flex items-center justify-center text-[#c19b48] shadow-xs">
-              <Scale className="w-5 h-5" />
+          <div className="relative shrink-0">
+            <div className="w-10 h-10 rounded-full overflow-hidden border border-[#c19b48]/50 bg-[#0a1c36] p-0.5 flex items-center justify-center shadow-xs">
+              <img
+                src="/logo.png"
+                alt="Rajinder Law Academy"
+                className="w-full h-full object-contain rounded-full"
+              />
             </div>
-            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-[#061120]" />
           </div>
 
           <div>
             <div className="flex items-center gap-1.5">
               <h3 className="text-sm font-serif font-bold text-slate-900 dark:text-white">
-                Adv. Rajinder Sir & Judicial Faculty
+                Rajinder Law Academy
               </h3>
               <span className="text-[10px] px-2 py-0.2 rounded-full bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] font-semibold flex items-center gap-0.5">
                 <ShieldCheck className="w-2.5 h-2.5" />
@@ -289,14 +291,13 @@ export const ChamberChatWindow: React.FC<ChamberChatWindowProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Online in Chamber
-              </span>
-              <span>•</span>
-              <span>Delhi High Court Chamber Complex</span>
-            </div>
+            {peerTyping.isTyping && (
+              <div className="flex items-center gap-2 text-[11px] text-emerald-600 dark:text-emerald-400">
+                <span className="animate-pulse">
+                  {peerTyping.userName || 'Faculty'} is drafting legal reasoning...
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -306,32 +307,13 @@ export const ChamberChatWindow: React.FC<ChamberChatWindowProps> = ({
               <span>Ref: {initialQueryContext.queryNumber}</span>
             </div>
           )}
-
-          <button
-            type="button"
-            onClick={() => {
-              if (conversation) {
-                apiClient.get(`/chat/conversations/${conversation._id}/messages?limit=50`).then((res) => {
-                  if (res.data?.messages) setMessages(res.data.messages);
-                  toast.success('Chat synchronized with chamber server');
-                });
-              }
-            }}
-            className="p-2 rounded-xl bg-white dark:bg-[#0a1c36] hover:bg-slate-100 dark:hover:bg-[#143564] border border-slate-200 dark:border-[#143564] text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-            title="Sync conversation"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
 
       {/* 2. Messages Stream */}
       <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-50/30 dark:bg-[#061120]/40">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full space-y-2 text-slate-400">
-            <Loader2 className="w-6 h-6 animate-spin text-[#c19b48]" />
-            <span className="text-xs">Connecting to chamber encryption socket...</span>
-          </div>
+          <ChatStreamSkeleton />
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto space-y-3 p-6">
             <div className="w-12 h-12 rounded-2xl bg-[#c19b48]/10 border border-[#c19b48]/30 flex items-center justify-center text-[#c19b48]">
@@ -429,7 +411,7 @@ export const ChamberChatWindow: React.FC<ChamberChatWindowProps> = ({
           value={inputText}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a question or cite a bare act provision (Enter to send)..."
+          placeholder="Type a message..."
           className="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48] resize-none max-h-32 min-h-[42px] leading-relaxed"
         />
 

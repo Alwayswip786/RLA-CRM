@@ -27,7 +27,9 @@ export const protect = catchAsync(async (req: Request, _res: Response, next: Nex
   }
 
   // 3. Find current user and verify authVersion
-  const currentUser = await User.findById(decoded.id).select('+authVersion +password');
+  const currentUser = await User.findById(decoded.id)
+    .select('+authVersion +password')
+    .populate('adminRoleId');
   if (!currentUser) {
     throw new ApiError(401, 'The account belonging to this token no longer exists.');
   }
@@ -38,7 +40,14 @@ export const protect = catchAsync(async (req: Request, _res: Response, next: Nex
 
   // 4. Instant session revocation check
   if ((decoded.authVersion ?? 0) !== (currentUser.authVersion ?? 0)) {
-    throw new ApiError(401, 'Your session has expired due to a recent password reset. Please log in again.');
+    throw new ApiError(401, 'Your session has expired due to a recent credential or permission update. Please log in again.');
+  }
+
+  // Debounced lastActiveAt update (every 2 minutes)
+  const now = Date.now();
+  if (!currentUser.lastActiveAt || now - new Date(currentUser.lastActiveAt).getTime() > 2 * 60 * 1000) {
+    currentUser.lastActiveAt = new Date();
+    currentUser.save().catch(() => undefined);
   }
 
   req.user = currentUser;

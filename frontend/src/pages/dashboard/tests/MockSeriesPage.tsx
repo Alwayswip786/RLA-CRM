@@ -1,183 +1,370 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckSquare,
   Clock,
-  Award,
   ArrowRight,
-  Filter,
+  Loader2,
+  Trophy,
+  History,
+  Radio,
+  Flame,
+  ChevronRight,
+  Calendar,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../../lib/toast';
+import { fetchLiveTestCatalog, startLiveTestSession } from '../../../services/liveTest.service';
+import { useTestSessionStore } from '../../../store/useTestSessionStore';
+import { TestRunnerInterface } from '../../../components/tests/TestRunnerInterface';
+import { TestAutopsyDebrief } from '../../../components/tests/TestAutopsyDebrief';
+import { LiveTestLeaderboard } from '../../../components/tests/LiveTestLeaderboard';
+import { LiveTestHistoryList } from '../../../components/tests/LiveTestHistoryList';
+import type { LiveMockTestItem } from '../../../types/liveTest.types';
+import type { AutopsyReviewData } from '../../../types/testEngine.types';
+import { CustomSelect } from '../../../components/ui/CustomSelect';
+import { TestCardSkeleton } from '../../../components/ui/skeleton';
 
-interface MockTest {
-  id: string;
-  title: string;
-  syllabus: string;
-  questionsCount: number;
-  duration: string;
-  negativeMarking: string;
-  targetState: string;
-  status: 'Live Now' | 'Scheduled' | 'Attempted';
-  score?: string;
-  rank?: string;
-}
-
-const mockTests: MockTest[] = [
-  {
-    id: 'mt-1',
-    title: 'Delhi Judiciary (DJS) Full Mock 04',
-    syllabus: 'Full Syllabus: CPC, CrPC/BNSS, BNS, Evidence, Constitution, Commercial Courts',
-    questionsCount: 200,
-    duration: '150 Mins',
-    negativeMarking: '0.25 Mark',
-    targetState: 'Delhi (DJS)',
-    status: 'Live Now',
-  },
-  {
-    id: 'mt-2',
-    title: 'UP PCS-J Law Paper Mock 03',
-    syllabus: 'Substantive & Procedural Law: IPC, CrPC, CPC, TPA, Contract, Partnership',
-    questionsCount: 150,
-    duration: '120 Mins',
-    negativeMarking: '0.33 Mark',
-    targetState: 'Uttar Pradesh',
-    status: 'Scheduled',
-  },
-  {
-    id: 'mt-3',
-    title: 'Bhartiya Nyaya Sanhita (BNS) Master Mock',
-    syllabus: '100 MCQs strictly focused on new BNS provisions and repealed IPC sections',
-    questionsCount: 100,
-    duration: '90 Mins',
-    negativeMarking: '0.25 Mark',
-    targetState: 'All-India',
-    status: 'Attempted',
-    score: '84/100',
-    rank: 'AIR #14',
-  },
-];
+type ActiveTab = 'hub' | 'leaderboard' | 'history';
 
 export const MockSeriesPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('hub');
+  const [liveTests, setLiveTests] = useState<LiveMockTestItem[]>([]);
   const [filterState, setFilterState] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLaunchingId, setIsLaunchingId] = useState<string | null>(null);
+  const [activeReviewData, setActiveReviewData] = useState<AutopsyReviewData | null>(null);
+  const [lastTick, setLastTick] = useState<number>(Date.now());
 
-  const filtered = filterState === 'all'
-    ? mockTests
-    : mockTests.filter((m) => m.targetState.toLowerCase().includes(filterState.toLowerCase()));
+  const initSession = useTestSessionStore((state) => state.initSession);
+  const currentSession = useTestSessionStore((state) => state.session);
+  const clearSession = useTestSessionStore((state) => state.clearSession);
 
-  const handleStartTest = (test: MockTest) => {
-    toast.success(`Initializing Exam Engine for ${test.title}`, {
-      description: 'Fullscreen exam lock & webcam proctoring active.',
-      duration: 3500,
-    });
+  // Live timer tick every 10 seconds to update countdown badges
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastTick(Date.now());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadCatalog = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchLiveTestCatalog();
+      setLiveTests(data);
+    } catch (err) {
+      console.error('Failed to load live test catalog:', err);
+      toast.error('Failed to load All-India test series catalog.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadCatalog();
+  }, []);
+
+  const handleStartLiveTest = async (test: LiveMockTestItem) => {
+    try {
+      setIsLaunchingId(test.id);
+      const res = await startLiveTestSession(test.id);
+
+      if (res.session) {
+        initSession({
+          ...res.session,
+          isLive: true,
+        });
+        setActiveReviewData(null);
+        toast.success(
+          res.isResumed
+            ? `Resuming Live Exam: ${test.title}`
+            : `Entering Live Examination Room for ${test.title}`,
+          {
+            description: `Duration: ${test.durationFormatted}. Negative penalty: ${test.negativeMarkFormatted}.`,
+          }
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to start live test:', err);
+      toast.error(err?.response?.data?.message || 'Failed to enter exam room. Please check window timings.');
+    } finally {
+      setIsLaunchingId(null);
+    }
+  };
+
+  // Helper to format countdown
+  const formatCountdown = (countdownMs: number, phase: string) => {
+    if (countdownMs <= 0 || !lastTick) return phase === 'closed' ? 'Window Closed' : 'Live Now';
+    const totalMinutes = Math.floor(countdownMs / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}d ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  // If a test is actively running, render the full-screen exam engine
+  if (currentSession) {
+    return (
+      <TestRunnerInterface
+        isLiveMode={Boolean(currentSession.isLive)}
+        onComplete={(review) => {
+          clearSession();
+          setActiveReviewData(review);
+          loadCatalog();
+        }}
+        onExit={() => {
+          clearSession();
+          loadCatalog();
+        }}
+      />
+    );
+  }
+
+  // If viewing post-test autopsy
+  if (activeReviewData) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
+        <TestAutopsyDebrief
+          reviewData={activeReviewData}
+          onRetakeOrReset={() => {
+            setActiveReviewData(null);
+            loadCatalog();
+          }}
+        />
+      </div>
+    );
+  }
+
+  const filtered =
+    filterState === 'all'
+      ? liveTests
+      : liveTests.filter(
+          (m) =>
+            m.targetState.toLowerCase().includes(filterState.toLowerCase()) ||
+            m.targetExam.toLowerCase().includes(filterState.toLowerCase())
+        );
+
+  const liveCount = liveTests.filter((t) => t.phase === 'live').length;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564]">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
-            <Award className="w-3.5 h-3.5" />
-            <span>All-India Ranking Mock Engine</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Prelims All-India Test Series
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Real exam simulation with timer, negative marking, and instant detailed scorecards.
-          </p>
-        </div>
-
-        {/* Filter */}
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <select
-            value={filterState}
-            onChange={(e) => setFilterState(e.target.value)}
-            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-[#c19b48]"
+      {/* Navigation Mode Pill Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* 3 Main Tabs */}
+        <div className="inline-flex p-1.5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs overflow-x-auto no-scrollbar max-w-full">
+          <button
+            type="button"
+            onClick={() => setActiveTab('hub')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'hub'
+                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
           >
-            <option value="all">All Jurisdictions</option>
-            <option value="delhi">Delhi (DJS)</option>
-            <option value="uttar pradesh">Uttar Pradesh (UP PCS-J)</option>
-            <option value="all-india">All-India Special</option>
-          </select>
+            <Radio className="w-3.5 h-3.5" />
+            <span>Live Exam Hub</span>
+            {liveCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-red-500 text-white text-[9px] font-bold animate-pulse">
+                {liveCount} Live
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('leaderboard')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'leaderboard'
+                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>All-India Standings</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'history'
+                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>My Exam History</span>
+          </button>
         </div>
       </div>
 
-      {/* Tests Catalog */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((test) => (
-          <div
-            key={test.id}
-            className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col justify-between space-y-4 shadow-xs hover:border-[#c19b48]/60 transition-all"
-          >
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
-                  {test.targetState}
-                </span>
+      {/* Tab 2: Leaderboard View */}
+      {activeTab === 'leaderboard' && <LiveTestLeaderboard />}
 
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                    test.status === 'Live Now'
-                      ? 'bg-red-500/15 text-red-500 border border-red-500/30 animate-pulse'
-                      : test.status === 'Attempted'
-                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'bg-blue-500/15 text-blue-500 border border-blue-500/30'
-                  }`}
-                >
-                  {test.status}
-                </span>
+      {/* Tab 3: History View */}
+      {activeTab === 'history' && (
+        <LiveTestHistoryList onOpenAutopsy={(review) => setActiveReviewData(review)} />
+      )}
+
+      {/* Tab 1: Live Exam Hub */}
+      {activeTab === 'hub' && (
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
+                <Flame className="w-3.5 h-3.5 text-amber-500" />
+                <span>All-India Ranking Mock Engine</span>
               </div>
-
-              <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
-                {test.title}
-              </h3>
-
-              <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
-                {test.syllabus}
+              <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
+                Prelims All-India Test Series
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Real exam simulation with timer, negative marking, and instant detailed scorecards.
               </p>
-
-              <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                <div className="flex items-center gap-1">
-                  <CheckSquare className="w-3.5 h-3.5 text-[#c19b48]" />
-                  <span>{test.questionsCount} Questions</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-[#c19b48]" />
-                  <span>{test.duration}</span>
-                </div>
-              </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 dark:border-[#143564]">
-              {test.status === 'Attempted' ? (
-                <div className="flex items-center justify-between text-xs">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Score / Rank</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                      {test.score} • {test.rank}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => toast.info('Loading full scorecard and question-by-question analysis...')}
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-800 dark:text-slate-200 font-semibold text-xs transition-colors cursor-pointer"
-                  >
-                    Scorecard
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => handleStartTest(test)}
-                  className="w-full py-2 px-3 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <span>{test.status === 'Live Now' ? 'Enter Live Exam Room' : 'Start Mock Practice'}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              )}
+            {/* Filter */}
+            <div className="w-full sm:w-56 shrink-0">
+              <CustomSelect
+                options={[
+                  { value: 'all', label: 'All Jurisdictions' },
+                  { value: 'delhi', label: 'Delhi (DJS)' },
+                  { value: 'uttar pradesh', label: 'Uttar Pradesh (UP PCS-J)' },
+                  { value: 'all-india', label: 'All-India Special' },
+                  { value: 'haryana', label: 'Haryana (ADA & PCS-J)' },
+                ]}
+                value={filterState}
+                onChange={(val) => setFilterState(val)}
+                placeholder="All Jurisdictions"
+                sheetTitle="Filter by Jurisdiction"
+              />
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Loading Skeletons */}
+          {isLoading && <TestCardSkeleton count={6} />}
+
+          {/* Tests Catalog */}
+          {!isLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtered.map((test) => {
+                const isAttempted = test.userStatus === 'completed';
+                const isLive = test.phase === 'live';
+                const isScheduled = test.phase === 'scheduled';
+
+                return (
+                  <div
+                    key={test.id}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col justify-between space-y-4 shadow-xs hover:border-[#c19b48]/60 transition-all"
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
+                          {test.targetState}
+                        </span>
+
+                        {/* Status Pills */}
+                        {isAttempted ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                            Attempted
+                          </span>
+                        ) : isLive ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-red-500/15 text-red-500 border border-red-500/30 animate-pulse flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span>Live Now</span>
+                          </span>
+                        ) : isScheduled ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-blue-500/15 text-blue-500 border border-blue-500/30 flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            <span>Scheduled</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                            Closed
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white line-clamp-1">
+                        {test.title}
+                      </h3>
+
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                        {test.syllabus}
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-1">
+                          <CheckSquare className="w-3.5 h-3.5 text-[#c19b48]" />
+                          <span>{test.questionsCount} Questions</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-[#c19b48]" />
+                          <span>{test.durationFormatted}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 dark:border-[#143564]">
+                      {isAttempted ? (
+                        <div className="flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Score / Rank</span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                              {test.officialScore} pts {test.officialRank ? `• AIR #${test.officialRank}` : ''}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleStartLiveTest(test)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-800 dark:text-slate-200 font-semibold text-xs transition-colors cursor-pointer"
+                          >
+                            Re-Attempt
+                          </button>
+                        </div>
+                      ) : isScheduled ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            toast.info(`Exam opens on ${new Date(test.windowStart).toLocaleString('en-IN')}`, {
+                              description: 'You will receive an academy broadcast reminder when this exam goes live.',
+                            });
+                          }}
+                          className="w-full py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200 dark:border-[#143564]"
+                        >
+                          <span>Starts in {formatCountdown(test.countdownMs, test.phase)}</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleStartLiveTest(test)}
+                          disabled={isLaunchingId === test.id}
+                          className="w-full py-2.5 px-3 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                        >
+                          {isLaunchingId === test.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <span>
+                                {isLive ? 'Enter Live Exam Room' : 'Start Mock Practice'}
+                              </span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

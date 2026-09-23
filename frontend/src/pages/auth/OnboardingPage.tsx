@@ -14,9 +14,10 @@ import {
   Calendar,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAuthStore } from '../../store/useAuthStore';
 import { apiClient } from '../../lib/apiClient';
+import { CustomSelect } from '../../components/ui/CustomSelect';
 
 // Target Judicial Examination Options
 const TARGET_EXAMS = [
@@ -46,6 +47,13 @@ const TARGET_YEARS = [
   { value: '2025-2026', label: 'Target 2025–26', desc: 'Foundation comprehensive' },
   { value: '2026-2027', label: 'Target 2026–27', desc: 'Long-term 2-year roadmap' },
 ];
+
+const TARGET_STATE_OPTIONS = TARGET_STATES.map((st) => ({ value: st, label: st }));
+const TARGET_YEAR_OPTIONS = TARGET_YEARS.map((yr) => ({
+  value: yr.value,
+  label: yr.label,
+  description: yr.desc,
+}));
 
 const BACKGROUND_OPTIONS = [
   {
@@ -176,7 +184,7 @@ export const OnboardingPage: React.FC = () => {
   return (
     <div className="min-h-screen w-full flex flex-col justify-between items-center bg-[#F7F3E6] dark:bg-[#040B14] text-slate-900 dark:text-slate-100 font-sans transition-colors px-4 py-6 sm:px-6 sm:py-8 overflow-y-auto">
       {/* Centered Luxury Onboarding Card */}
-      <div className="w-full max-w-[620px] my-auto bg-white dark:bg-[#0A1C36] border border-slate-200 dark:border-[#143564] rounded-2xl p-5 sm:p-7 shadow-xl shrink-0 transition-colors">
+      <div className="w-full max-w-[620px] my-auto bg-white dark:bg-[#0A1C36] border border-slate-200 dark:border-[#143564] rounded-2xl p-4 sm:p-7 shadow-xl shrink-0 transition-colors">
         {/* Brand Header & Step Progress Tracker */}
         <div className="mb-6">
           <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-[#143564]/80">
@@ -360,50 +368,27 @@ export const OnboardingPage: React.FC = () => {
               {/* Target State & Target Year in 2 Columns */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                 {/* State Jurisdiction Dropdown */}
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                    State / Jurisdiction <span className="text-red-500 font-bold">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                      <MapPin className="w-4 h-4" strokeWidth={1.75} />
-                    </div>
-                    <select
-                      value={targetState}
-                      onChange={(e) => setTargetState(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120]/80 border border-slate-200 dark:border-[#143564] text-xs sm:text-sm font-normal text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48] transition-all cursor-pointer"
-                    >
-                      {TARGET_STATES.map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                <CustomSelect
+                  label="State / Jurisdiction"
+                  required
+                  icon={<MapPin className="w-4 h-4" strokeWidth={1.75} />}
+                  value={targetState}
+                  onChange={(val) => setTargetState(val)}
+                  options={TARGET_STATE_OPTIONS}
+                  searchable
+                  sheetTitle="Select State / Jurisdiction"
+                />
 
                 {/* Target Year Selector */}
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                    Target Exam Year <span className="text-red-500 font-bold">*</span>
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
-                      <Calendar className="w-4 h-4" strokeWidth={1.75} />
-                    </div>
-                    <select
-                      value={targetYear}
-                      onChange={(e) => setTargetYear(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#061120]/80 border border-slate-200 dark:border-[#143564] text-xs sm:text-sm font-normal text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48] transition-all cursor-pointer"
-                    >
-                      {TARGET_YEARS.map((yr) => (
-                        <option key={yr.value} value={yr.value}>
-                          {yr.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                <CustomSelect
+                  label="Target Exam Year"
+                  required
+                  icon={<Calendar className="w-4 h-4" strokeWidth={1.75} />}
+                  value={targetYear}
+                  onChange={(val) => setTargetYear(val)}
+                  options={TARGET_YEAR_OPTIONS}
+                  sheetTitle="Select Target Exam Year"
+                />
               </div>
 
               {/* Action Buttons */}

@@ -4,6 +4,7 @@ import type {
   JudgementsResponse,
   JudgementFilterMetaResponse,
   FeaturedJudgementResponse,
+  TodayDailyJudgementResponse,
   JudgementDigest,
 } from '../types/judgement.types';
 
@@ -42,6 +43,32 @@ export const fetchJudgementFilterMeta = async (): Promise<JudgementFilterMetaRes
  */
 export const fetchFeaturedJudgement = async (): Promise<FeaturedJudgementResponse> => {
   const res = await apiClient.get<FeaturedJudgementResponse>('/judgements/featured');
+  return res.data;
+};
+
+/**
+ * Fetch dynamic "Landmark Judgment of the Day" scheduled for today (IST)
+ */
+export const fetchTodayDailyJudgement = async (): Promise<TodayDailyJudgementResponse> => {
+  const res = await apiClient.get<TodayDailyJudgementResponse>('/judgements/daily/today');
+  return res.data;
+};
+
+/**
+ * Fetch historical archive of Daily Landmark Judgments
+ */
+export const fetchDailyJudgementArchive = async (
+  params: JudgementFilterParams = {}
+): Promise<JudgementsResponse> => {
+  const query = new URLSearchParams();
+  if (params.court && params.court !== 'all') query.append('court', params.court);
+  if (params.year && params.year !== 'all') query.append('year', String(params.year));
+  if (params.subject && params.subject !== 'all') query.append('subject', params.subject);
+  if (params.search && params.search.trim()) query.append('search', params.search.trim());
+  if (params.page) query.append('page', String(params.page));
+  if (params.limit) query.append('limit', String(params.limit));
+
+  const res = await apiClient.get<JudgementsResponse>(`/judgements/daily/archive?${query.toString()}`);
   return res.data;
 };
 

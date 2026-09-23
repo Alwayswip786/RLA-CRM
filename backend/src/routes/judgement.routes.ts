@@ -3,6 +3,8 @@ import {
   getPublishedJudgements,
   getFilterMeta,
   getFeaturedJudgement,
+  getTodayDailyJudgement,
+  getDailyJudgementArchive,
   getJudgementById,
   previewJudgementPdf,
   downloadJudgementPdf,
@@ -10,6 +12,8 @@ import {
   getAllJudgementsAdmin,
   createJudgement,
   updateJudgement,
+  scheduleDailyJudgementAdmin,
+  updateJudgementStatusAdmin,
   replaceJudgementPdf,
   togglePublishJudgement,
   deleteJudgement,
@@ -26,8 +30,10 @@ const router = Router();
 // 1. Dynamic distinct filter options (placed before :id route)
 router.get('/meta/filters', protect, getFilterMeta);
 
-// 2. Featured "Judgement of the Day" / Landmark Spotlight
+// 2. Featured "Judgement of the Day" / Landmark Spotlight (calendar & IST aware)
 router.get('/featured', protect, getFeaturedJudgement);
+router.get('/daily/today', protect, getTodayDailyJudgement);
+router.get('/daily/archive', protect, getDailyJudgementArchive);
 
 // 3. Admin management queue with 4 live KPI metrics (placed before :id route)
 router.get('/admin/all', protect, restrictTo('admin', 'faculty'), getAllJudgementsAdmin);
@@ -66,6 +72,22 @@ router.put(
   protect,
   restrictTo('admin', 'faculty'),
   updateJudgement
+);
+
+// 10a. Admin: Schedule as Landmark Judgment of the Day
+router.patch(
+  '/:id/schedule',
+  protect,
+  restrictTo('admin', 'faculty'),
+  scheduleDailyJudgementAdmin
+);
+
+// 10b. Admin: Update publication status (draft, scheduled, published, archived)
+router.patch(
+  '/:id/status',
+  protect,
+  restrictTo('admin', 'faculty'),
+  updateJudgementStatusAdmin
 );
 
 // 11. Replace PDF document

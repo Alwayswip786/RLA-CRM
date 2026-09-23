@@ -73,7 +73,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className={`relative w-full bg-white dark:bg-[#0a1c36] text-slate-900 dark:text-slate-100 rounded-t-[28px] border-t border-slate-200/80 dark:border-[#143564] shadow-2xl overflow-hidden flex flex-col z-10 pb-6 ${maxHeight} ${className}`}
+            className={`relative w-full bg-white dark:bg-[#0a1c36] text-slate-900 dark:text-slate-100 rounded-t-[28px] border-t border-slate-200/80 dark:border-[#143564] shadow-2xl overflow-hidden flex flex-col z-10 pb-[max(1.5rem,env(safe-area-inset-bottom))] ${maxHeight} ${className}`}
           >
             {/* iOS Pill Grab Handle Bar */}
             <div className="pt-2.5 pb-1 shrink-0 flex justify-center cursor-grab active:cursor-grabbing">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Scale, Loader2 } from 'lucide-react';
+import { ThreeDotLoader } from '../ui/ThreeDotLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -15,14 +15,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!isInitialized) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#061120] flex flex-col items-center justify-center p-4 transition-colors">
-        <div className="w-12 h-12 rounded-2xl bg-[#c19b48]/10 border border-[#c19b48]/30 flex items-center justify-center text-[#c19b48] shadow-lg mb-3">
-          <Scale className="w-6 h-6 animate-pulse" />
-        </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#c19b48] dark:text-[#e8cf8d] tracking-wider uppercase">
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          <span>Verifying Judicial Session...</span>
-        </div>
+      <div className="min-h-[100dvh] bg-[#F7F3E6] dark:bg-[#061120] flex items-center justify-center p-6 transition-colors">
+        <ThreeDotLoader />
       </div>
     );
   }

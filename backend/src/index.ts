@@ -7,6 +7,7 @@ import { seedInitialAdmin } from './scripts/seedAdmin.js';
 import { seedInitialNotices } from './scripts/seedNotices.js';
 import { seedInitialDoubts } from './scripts/seedDoubts.js';
 import { initializeChamberChatSocket } from './socket/chamberChat.socket.js';
+import { initializeLiveClassSocket } from './socket/liveClass.socket.js';
 
 const port = PORT;
 let server: Server | undefined;
@@ -23,10 +24,11 @@ const startServer = async () => {
         await seedInitialDoubts();
 
         server = createServer(app);
-        initializeChamberChatSocket(server);
+        const io = initializeChamberChatSocket(server);
+        initializeLiveClassSocket(io);
 
         server.listen(port, () => {
-            console.log(`RLA CRM Server: Running on port ${port} with Live Chamber Chat WebSocket`);
+            console.log(`RLA CRM Server: Running on port ${port} with Live Chamber & Classroom WebSockets`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

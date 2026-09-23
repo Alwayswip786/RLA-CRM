@@ -69,3 +69,7 @@ export const CLOUDINARY_CLOUD_NAME = getEnv('CLOUDINARY_CLOUD_NAME', '');
 export const CLOUDINARY_API_KEY = getEnv('CLOUDINARY_API_KEY', '');
 export const CLOUDINARY_API_SECRET = getEnv('CLOUDINARY_API_SECRET', '');
 
+// --- Zoom Video SDK Integration ---
+export const ZOOM_VIDEO_SDK_KEY = getEnv('ZOOM_VIDEO_SDK_KEY', 'mock_zoom_video_sdk_key_rla_2026');
+export const ZOOM_VIDEO_SDK_SECRET = getEnv('ZOOM_VIDEO_SDK_SECRET', 'mock_zoom_video_sdk_secret_rla_2026');
+

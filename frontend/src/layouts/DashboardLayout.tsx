@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { StudentSidebar } from '../components/dashboard/StudentSidebar';
 import { StudentNavbar } from '../components/dashboard/StudentNavbar';
 
@@ -8,6 +8,9 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+  const location = useLocation();
+  const mainContentRef = useRef<HTMLElement>(null);
+
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     return localStorage.getItem('rla_sidebar_collapsed') === 'true';
   });
@@ -34,8 +37,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Reset main content scroll position when switching routes
+  useEffect(() => {
+    mainContentRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
+
   return (
-    <div className="min-h-screen bg-[#F7F3E6] dark:bg-[#040b14] flex text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-[#c19b48]/30 selection:text-amber-900 dark:selection:text-[#faf3e2]">
+    <div className="h-screen h-[100dvh] bg-[#F7F3E6] dark:bg-[#040b14] flex text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-[#c19b48]/30 selection:text-amber-900 dark:selection:text-[#faf3e2] overflow-hidden">
       {/* Sidebar */}
       <StudentSidebar
         isCollapsed={isCollapsed}
@@ -44,16 +52,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       />
 
       {/* Main App Canvas */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Navbar / Header */}
         <StudentNavbar
           isCollapsed={isCollapsed}
+          isMobileOpen={isMobileOpen}
           onToggleSidebar={toggleSidebar}
           onOpenMobileSidebar={() => setIsMobileOpen(true)}
         />
 
-        {/* Content Body */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-[#F7F3E6]/70 dark:bg-[#061120]/50 min-h-[calc(100vh-3.5rem)] transition-colors">
+        {/* Content Body (Independently Scrollable) */}
+        <main
+          ref={mainContentRef}
+          className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:p-8 min-w-0 min-h-0 bg-[#F7F3E6]/70 dark:bg-[#061120]/50 overflow-y-auto overflow-x-hidden transition-colors touch-momentum"
+        >
           {children || <Outlet />}
         </main>
       </div>

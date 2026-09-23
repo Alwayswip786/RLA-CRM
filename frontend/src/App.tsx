@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/useAuthStore';
 import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
@@ -22,9 +22,7 @@ import { MockSeriesPage } from './pages/dashboard/tests/MockSeriesPage';
 import { PracticeQuizzesPage } from './pages/dashboard/tests/PracticeQuizzesPage';
 import { TestResultsPage } from './pages/dashboard/tests/TestResultsPage';
 import { MainsQuestionsPage } from './pages/dashboard/mains/MainsQuestionsPage';
-import { MainsSubmitPage } from './pages/dashboard/mains/MainsSubmitPage';
 import { MainsEvaluatedPage } from './pages/dashboard/mains/MainsEvaluatedPage';
-import { InterviewChamberPage } from './pages/dashboard/InterviewChamberPage';
 import { BookmarksPage } from './pages/dashboard/BookmarksPage';
 import { BareActsPage } from './pages/dashboard/BareActsPage';
 import { JudgmentsPage } from './pages/dashboard/JudgmentsPage';
@@ -37,6 +35,7 @@ import { ProfilePage } from './pages/dashboard/ProfilePage';
 import { CoursesHubPage } from './pages/dashboard/courses/CoursesHubPage';
 import { CourseDetailPage } from './pages/dashboard/courses/CourseDetailPage';
 import { LecturePlayerPage } from './pages/dashboard/courses/LecturePlayerPage';
+import { ChamberChatPage } from './pages/dashboard/ChamberChatPage';
 
 function App() {
   const initSession = useAuthStore((state) => state.initSession);
@@ -47,8 +46,34 @@ function App() {
 
   return (
     <BrowserRouter>
-      {/* Toast Notification Container */}
-      <Toaster position="top-right" richColors closeButton />
+      {/* Toast Notification Container (react-hot-toast) */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3500,
+          style: {
+            background: '#1E1E1E',
+            color: '#F7F3E6',
+            border: '1px solid #3D3D3D',
+            borderRadius: '12px',
+            fontSize: '12px',
+            padding: '12px 16px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#34D399',
+              secondary: '#1E1E1E',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#1E1E1E',
+            },
+          },
+        }}
+      />
 
       <Routes>
         {/* Auth Routes (Guest Only) */}
@@ -124,6 +149,24 @@ function App() {
           }
         />
 
+        {/* Fullscreen Live Faculty Mentorship Chamber (WhatsApp-like standalone view) */}
+        <Route
+          path="/dashboard/chamber"
+          element={
+            <ProtectedRoute>
+              <ChamberChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/doubts/:queryId/chamber"
+          element={
+            <ProtectedRoute>
+              <ChamberChatPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Classroom Portal / Dashboard Nested Routes */}
         <Route
           path="/dashboard"
@@ -148,11 +191,10 @@ function App() {
           {/* Mains Answer Writing */}
           <Route path="mains" element={<Navigate to="/dashboard/mains/questions" replace />} />
           <Route path="mains/questions" element={<MainsQuestionsPage />} />
-          <Route path="mains/submit" element={<MainsSubmitPage />} />
+          <Route path="mains/submit" element={<Navigate to="/dashboard/mains/questions" replace />} />
           <Route path="mains/evaluated" element={<MainsEvaluatedPage />} />
 
-          {/* Interviews & Bookmarks */}
-          <Route path="interviews" element={<InterviewChamberPage />} />
+          {/* Bookmarks */}
           <Route path="bookmarks" element={<BookmarksPage />} />
 
           {/* Knowledge Vault */}

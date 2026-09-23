@@ -12,7 +12,7 @@ import {
   ArrowRight,
   AlertCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { FcGoogle } from 'react-icons/fc';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { apiClient } from '../../lib/apiClient';

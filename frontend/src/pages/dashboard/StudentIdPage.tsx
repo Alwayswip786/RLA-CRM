@@ -5,7 +5,7 @@ import {
   User,
   MapPin,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export const StudentIdPage: React.FC = () => {
