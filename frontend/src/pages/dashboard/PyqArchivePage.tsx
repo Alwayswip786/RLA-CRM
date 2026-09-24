@@ -1,87 +1,145 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
   FileQuestion,
   RotateCcw,
 } from 'lucide-react';
 import type { PyqPaper, PyqFilterParams } from '../../types/pyq.types';
-import { fetchPublishedPyqs, fetchPyqFilterMeta } from '../../services/pyq.service';
-import { PyqFilterBar } from '../../components/pyq/PyqFilterBar';
+import { fetchPublishedPyqs } from '../../services/pyq.service';
 import { PyqPaperCard } from '../../components/pyq/PyqPaperCard';
 import { PyqViewerModal } from '../../components/pyq/PyqViewerModal';
 import { PyqCardSkeleton } from '../../components/ui/skeleton';
 
 export const PyqArchivePage: React.FC = () => {
   const [papers, setPapers] = useState<PyqPaper[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [, setTotalPages] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextPageError, setNextPageError] = useState<string | null>(null);
 
   // Filter state
-  const [filters, setFilters] = useState<PyqFilterParams>({
+  const [filters] = useState<PyqFilterParams>({
     exam: 'all',
     year: 'all',
     stage: 'all',
     subject: 'all',
     search: '',
     sort: 'year_desc',
-    page: 1,
     limit: 9,
-  });
-
-  // Dynamic filter options
-  const [meta, setMeta] = useState<{
-    exams: string[];
-    years: number[];
-    stages: string[];
-    subjects: string[];
-  }>({
-    exams: [],
-    years: [],
-    stages: ['Prelims', 'Mains', 'Interview'],
-    subjects: [],
   });
 
   // Active viewer paper
   const [activeViewerPaper, setActiveViewerPaper] = useState<PyqPaper | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
-  // Fetch filter metadata on mount
-  useEffect(() => {
-    fetchPyqFilterMeta()
-      .then((res) => {
-        if (res.success && res.meta) {
-          setMeta(res.meta);
-        }
-      })
-      .catch((err) => console.warn('Failed to load filter meta:', err));
-  }, []);
+  // Sentinel and fetch locks
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const isFetchingRef = useRef(false);
+  const hasNextPageRef = useRef(false);
+  const pageRef = useRef(1);
 
-  // Fetch published papers whenever filters change
-  const loadPapers = useCallback(async () => {
+  // Keep refs in sync for observer callback
+  useEffect(() => {
+    hasNextPageRef.current = hasNextPage;
+  }, [hasNextPage]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  // Initial load
+  const loadInitialPapers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetchPublishedPyqs(filters);
+      setNextPageError(null);
+      setPage(1);
+
+      const res = await fetchPublishedPyqs({
+        ...filters,
+        page: 1,
+      });
+
       if (res.success) {
         setPapers(res.pyqs);
-        setTotal(res.total);
         setTotalPages(res.totalPages);
+        const hasNext = res.hasNextPage ?? (1 < res.totalPages);
+        setHasNextPage(hasNext);
       }
     } catch (err: any) {
       console.error('Failed to load PYQ papers:', err);
-      setError(err?.response?.data?.message || 'Unable to connect to Judicial Vault. Please try again.');
+      setError(
+        err?.response?.data?.message || 'Unable to connect to Judicial Vault. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   }, [filters]);
 
   useEffect(() => {
-    loadPapers();
-  }, [loadPapers]);
+    loadInitialPapers();
+  }, [loadInitialPapers]);
+
+  // Fetch next page batch and append deduplicated items
+  const fetchNextPage = useCallback(async () => {
+    if (isFetchingRef.current || !hasNextPageRef.current) return;
+
+    try {
+      isFetchingRef.current = true;
+      setIsFetchingNextPage(true);
+      setNextPageError(null);
+
+      const nextPage = pageRef.current + 1;
+      const res = await fetchPublishedPyqs({
+        ...filters,
+        page: nextPage,
+      });
+
+      if (res.success) {
+        setPapers((prev) => {
+          const existingIds = new Set(prev.map((p) => p._id));
+          const uniqueIncoming = res.pyqs.filter((p) => !existingIds.has(p._id));
+          return [...prev, ...uniqueIncoming];
+        });
+        setPage(nextPage);
+        setTotalPages(res.totalPages);
+        const hasNext = res.hasNextPage ?? (nextPage < res.totalPages);
+        setHasNextPage(hasNext);
+      }
+    } catch (err: any) {
+      console.error('Failed to load next page of PYQs:', err);
+      setNextPageError(
+        err?.response?.data?.message || 'Could not load additional past papers. Tap to retry.'
+      );
+    } finally {
+      isFetchingRef.current = false;
+      setIsFetchingNextPage(false);
+    }
+  }, [filters]);
+
+  // IntersectionObserver Sentinel (rootMargin: '280px 0px' for proactive pre-fetch)
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !hasNextPage || isFetchingNextPage || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries.some((entry) => entry.isIntersecting) &&
+          !isFetchingRef.current &&
+          hasNextPageRef.current
+        ) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: '280px 0px' }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, loading]);
 
   const handleOpenViewer = (paper: PyqPaper) => {
     setActiveViewerPaper(paper);
@@ -99,50 +157,8 @@ export const PyqArchivePage: React.FC = () => {
     );
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setFilters((prev) => ({ ...prev, page: newPage }));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-xs">
-        <div className="space-y-1.5 max-w-3xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#c19b48]/15 border border-[#c19b48]/30 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>State Judiciary Question Bank & Model Solutions</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900 dark:text-white">
-            Solved PYQ Archive (2015–2024)
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-            Authentic official question papers across Delhi (DJS), Haryana (HCS), UP PCS-J, and MP CJ with complete step-by-step ratio analysis and model solutions prepared by senior academy faculty.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-center min-w-[110px]">
-            <div className="text-xl font-mono font-bold text-[#c19b48] dark:text-[#e8cf8d]">
-              {total}
-            </div>
-            <div className="text-[11px] text-slate-400 font-medium">Available Papers</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <PyqFilterBar
-        filters={filters}
-        onChange={setFilters}
-        availableExams={meta.exams}
-        availableYears={meta.years}
-        availableStages={meta.stages}
-        totalResults={total}
-      />
-
       {/* Main Content Area */}
       {loading ? (
         <PyqCardSkeleton count={6} />
@@ -151,7 +167,7 @@ export const PyqArchivePage: React.FC = () => {
         <div className="p-10 rounded-2xl bg-white dark:bg-[#0a1c36] border border-rose-200 dark:border-rose-950 text-center space-y-3">
           <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">{error}</p>
           <button
-            onClick={loadPapers}
+            onClick={loadInitialPapers}
             className="px-4 py-2 rounded-xl bg-[#c19b48] text-[#061120] text-xs font-bold hover:bg-[#d8b862] transition-colors cursor-pointer"
           >
             Retry Loading
@@ -165,73 +181,57 @@ export const PyqArchivePage: React.FC = () => {
           </div>
           <div className="space-y-1 max-w-md mx-auto">
             <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
-              No Solved Papers Found
+              No Solved Papers Available
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              We could not find any question papers matching your current search or filter criteria. Try adjusting the state or year filters.
+              There are currently no official previous year question papers published in the archive.
             </p>
           </div>
-          <button
-            onClick={() =>
-              setFilters({
-                exam: 'all',
-                year: 'all',
-                stage: 'all',
-                subject: 'all',
-                search: '',
-                sort: 'year_desc',
-                page: 1,
-              })
-            }
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#143564] transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset All Filters</span>
-          </button>
         </div>
       ) : (
-        // Grid of Papers
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {papers.map((paper) => (
-            <PyqPaperCard
-              key={paper._id}
-              paper={paper}
-              onPreview={handleOpenViewer}
-              onDownloadComplete={handleDownloadIncrement}
-            />
-          ))}
+        // Grid of Papers + Streaming Batches
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {papers.map((paper) => (
+              <PyqPaperCard
+                key={paper._id}
+                paper={paper}
+                onPreview={handleOpenViewer}
+                onDownloadComplete={handleDownloadIncrement}
+              />
+            ))}
+          </div>
+
+          {/* Next Batch Skeletons (Inline without resetting or jumping scroll) */}
+          {isFetchingNextPage && (
+            <div className="pt-2">
+              <PyqCardSkeleton count={3} />
+            </div>
+          )}
+
+          {/* Next Page Failure - Inline Retry Pill */}
+          {nextPageError && (
+            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-between gap-4 shadow-xs">
+              <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+                {nextPageError}
+              </p>
+              <button
+                type="button"
+                onClick={() => void fetchNextPage()}
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
+
+          {/* Invisible Sentinel Element for IntersectionObserver */}
+          <div ref={loadMoreRef} className="h-6 w-full pointer-events-none" aria-hidden="true" />
         </div>
       )}
 
-      {/* Pagination Controls */}
-      {!loading && totalPages > 1 && (
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex items-center justify-between shadow-xs">
-          <button
-            onClick={() => handlePageChange((filters.page || 1) - 1)}
-            disabled={(filters.page || 1) <= 1}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-[#143564] disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span>Previous</span>
-          </button>
-
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-            Page <strong className="text-slate-800 dark:text-white">{filters.page || 1}</strong> of{' '}
-            <strong className="text-slate-800 dark:text-white">{totalPages}</strong>
-          </span>
-
-          <button
-            onClick={() => handlePageChange((filters.page || 1) + 1)}
-            disabled={(filters.page || 1) >= totalPages}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-[#143564] disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
-          >
-            <span>Next</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* In-App PDF Viewer Modal */}
+      {/* In-App PDF Viewer Modal (Edge-to-Edge Fullscreen on all devices) */}
       <PyqViewerModal
         paper={activeViewerPaper}
         isOpen={isViewerOpen}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  PenTool,
   Clock,
   BookOpen,
   UploadCloud,
@@ -19,6 +18,7 @@ import {
   Search,
   Check,
   RefreshCw,
+  Eye,
 } from 'lucide-react';
 import { toast } from '../../../lib/toast';
 import { CustomSelect } from '../../../components/ui/CustomSelect';
@@ -29,11 +29,14 @@ import {
   fetchQuestionById,
   submitAnswerCopy,
   downloadSubmissionPdf,
+  fetchSubmissionPdfBlob,
+  getSubmissionPdfStreamUrl,
 } from '../../../services/mains.service';
+import { UniversalPdfModal } from '../../../components/pdf';
+import { SegmentedTabs } from '../../../components/ui/tabs';
 import type {
   MainsQuestion,
   MainsSubmission,
-  MainsStreakInfo,
   DeadlineInfo,
 } from '../../../types/mains.types';
 
@@ -54,7 +57,6 @@ export const MainsQuestionsPage: React.FC = () => {
   // Today's Challenge State
   const [question, setQuestion] = useState<MainsQuestion | null>(null);
   const [existingSubmission, setExistingSubmission] = useState<MainsSubmission | null>(null);
-  const [streak, setStreak] = useState<MainsStreakInfo | null>(null);
   const [deadlineInfo, setDeadlineInfo] = useState<DeadlineInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -81,6 +83,15 @@ export const MainsQuestionsPage: React.FC = () => {
   const [selectedArchiveQuestion, setSelectedArchiveQuestion] = useState<MainsQuestion | null>(null);
   const [, setIsLoadingDetail] = useState(false);
 
+  // In-App PDF Viewer State
+  const [viewingPdf, setViewingPdf] = useState<{
+    url: string;
+    title: string;
+    subtitle: string;
+    downloadFileName: string;
+  } | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+
   // Fetch active question and student's submission status
   const loadTodayData = useCallback(async () => {
     try {
@@ -89,7 +100,6 @@ export const MainsQuestionsPage: React.FC = () => {
       if (res.success) {
         setQuestion(res.question);
         setExistingSubmission(res.submission);
-        setStreak(res.streak || null);
         setDeadlineInfo(res.deadlineInfo || null);
       }
     } catch {
@@ -218,6 +228,38 @@ export const MainsQuestionsPage: React.FC = () => {
     }
   };
 
+  const handleViewCopy = async (sub: MainsSubmission) => {
+    try {
+      setIsLoadingPdf(true);
+      const filename = sub.studentPdf?.originalName || 'answer_copy.pdf';
+      const blob = await fetchSubmissionPdfBlob(sub._id, 'student');
+      const url = window.URL.createObjectURL(blob);
+      setViewingPdf({
+        url,
+        title: `Submitted Copy • Challenge #${sub.question?.challengeNumber ?? ''}`,
+        subtitle: sub.question?.title || 'Daily Mains Answer Sheet',
+        downloadFileName: filename,
+      });
+    } catch {
+      const fallbackUrl = getSubmissionPdfStreamUrl(sub._id, 'student');
+      setViewingPdf({
+        url: fallbackUrl,
+        title: `Submitted Copy • Challenge #${sub.question?.challengeNumber ?? ''}`,
+        subtitle: sub.question?.title || 'Daily Mains Answer Sheet',
+        downloadFileName: sub.studentPdf?.originalName || 'answer_copy.pdf',
+      });
+    } finally {
+      setIsLoadingPdf(false);
+    }
+  };
+
+  const handleClosePdf = () => {
+    if (viewingPdf?.url && viewingPdf.url.startsWith('blob:')) {
+      window.URL.revokeObjectURL(viewingPdf.url);
+    }
+    setViewingPdf(null);
+  };
+
   const handleOpenArchiveModal = async (q: MainsQuestion) => {
     try {
       setIsLoadingDetail(true);
@@ -237,67 +279,28 @@ export const MainsQuestionsPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200 pb-16">
-      {/* 1. Top Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
-        <div>
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
-            <PenTool className="w-3.5 h-3.5" />
-            <span>Daily Answer Writing (DAW) Clinic</span>
-            {streak && streak.currentStreak > 0 && (
-              <span className="ml-1 px-2 py-0.2 rounded-full bg-[#c19b48] text-[#061120] text-[10px] font-bold">
-                🔥 {streak.currentStreak} Day Streak
-              </span>
-            )}
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Daily Mains Problem & Evaluation
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Attempt daily judicial problems under exam-like deadlines and receive line-by-line marginal feedback from Adv. Rajinder Sir.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/dashboard/mains/evaluated')}
-            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white font-semibold text-xs transition-colors flex items-center gap-1.5 border border-slate-200 dark:border-[#143564] cursor-pointer"
-          >
-            <span>Evaluated Copies & Remarks</span>
-            <ExternalLink className="w-3.5 h-3.5 text-[#c19b48]" />
-          </button>
-        </div>
-      </div>
 
       {/* 2. Tabs Switcher */}
-      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-[#143564] pb-2">
-        <button
-          onClick={() => setActiveTab('today')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'today'
-              ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span>Today's Challenge</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('archive')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'archive'
-              ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <History className="w-3.5 h-3.5" />
-          <span>Past Challenges Archive</span>
-          {archiveTotal > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-[#143564] text-slate-700 dark:text-slate-300">
-              {archiveTotal}
-            </span>
-          )}
-        </button>
+      <div className="pb-2 border-b border-slate-200 dark:border-[#143564]">
+        <SegmentedTabs<'today' | 'archive'>
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              id: 'today',
+              label: "Today's Challenge",
+              shortLabel: "Today's Challenge",
+              badgeVariant: 'pulse',
+            },
+            {
+              id: 'archive',
+              label: 'Past Challenges Archive',
+              shortLabel: 'Archive',
+              icon: <History className="w-3.5 h-3.5" />,
+              badge: archiveTotal > 0 ? archiveTotal : undefined,
+            },
+          ]}
+        />
       </div>
 
       {/* 3. TAB 1: TODAY'S CHALLENGE */}
@@ -461,14 +464,31 @@ export const MainsQuestionsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadCopy(existingSubmission)}
-                      className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-[#143564] hover:bg-slate-300 dark:hover:bg-[#143564]/80 text-slate-800 dark:text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download Submitted Copy</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isLoadingPdf}
+                        onClick={() => handleViewCopy(existingSubmission)}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-60"
+                      >
+                        {isLoadingPdf ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
+                        <span>View Submitted Copy</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadCopy(existingSubmission)}
+                        className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-[#143564] hover:bg-slate-300 dark:hover:bg-[#143564]/80 text-slate-800 dark:text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Download Submitted PDF"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Download</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Previous Revisions */}
@@ -878,6 +898,16 @@ export const MainsQuestionsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Reusable In-App Universal PDF Modal */}
+      <UniversalPdfModal
+        isOpen={!!viewingPdf}
+        onClose={handleClosePdf}
+        url={viewingPdf?.url || null}
+        title={viewingPdf?.title || ''}
+        subtitle={viewingPdf?.subtitle}
+        downloadFileName={viewingPdf?.downloadFileName}
+      />
     </div>
   );
 };

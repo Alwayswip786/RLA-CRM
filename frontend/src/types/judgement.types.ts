@@ -133,6 +133,10 @@ export interface JudgementsResponse {
   total: number;
   page: number;
   totalPages: number;
+  hasNextPage?: boolean;
+  hasMore?: boolean;
+  hasPrevPage?: boolean;
+  nextPage?: number | null;
   judgements: JudgementDigest[];
 }
 

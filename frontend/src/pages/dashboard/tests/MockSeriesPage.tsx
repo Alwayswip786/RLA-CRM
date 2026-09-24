@@ -7,7 +7,6 @@ import {
   Trophy,
   History,
   Radio,
-  Flame,
   ChevronRight,
   Calendar,
 } from 'lucide-react';
@@ -20,15 +19,14 @@ import { LiveTestLeaderboard } from '../../../components/tests/LiveTestLeaderboa
 import { LiveTestHistoryList } from '../../../components/tests/LiveTestHistoryList';
 import type { LiveMockTestItem } from '../../../types/liveTest.types';
 import type { AutopsyReviewData } from '../../../types/testEngine.types';
-import { CustomSelect } from '../../../components/ui/CustomSelect';
 import { TestCardSkeleton } from '../../../components/ui/skeleton';
+import { SegmentedTabs } from '../../../components/ui/tabs';
 
 type ActiveTab = 'hub' | 'leaderboard' | 'history';
 
 export const MockSeriesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('hub');
   const [liveTests, setLiveTests] = useState<LiveMockTestItem[]>([]);
-  const [filterState, setFilterState] = useState<string>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLaunchingId, setIsLaunchingId] = useState<string | null>(null);
   const [activeReviewData, setActiveReviewData] = useState<AutopsyReviewData | null>(null);
@@ -137,14 +135,7 @@ export const MockSeriesPage: React.FC = () => {
     );
   }
 
-  const filtered =
-    filterState === 'all'
-      ? liveTests
-      : liveTests.filter(
-          (m) =>
-            m.targetState.toLowerCase().includes(filterState.toLowerCase()) ||
-            m.targetExam.toLowerCase().includes(filterState.toLowerCase())
-        );
+  const filtered = liveTests;
 
   const liveCount = liveTests.filter((t) => t.phase === 'live').length;
 
@@ -153,51 +144,32 @@ export const MockSeriesPage: React.FC = () => {
       {/* Navigation Mode Pill Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* 3 Main Tabs */}
-        <div className="inline-flex p-1.5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs overflow-x-auto no-scrollbar max-w-full">
-          <button
-            type="button"
-            onClick={() => setActiveTab('hub')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-              activeTab === 'hub'
-                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Radio className="w-3.5 h-3.5" />
-            <span>Live Exam Hub</span>
-            {liveCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-red-500 text-white text-[9px] font-bold animate-pulse">
-                {liveCount} Live
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('leaderboard')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-              activeTab === 'leaderboard'
-                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            <span>All-India Standings</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
-              activeTab === 'history'
-                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <History className="w-3.5 h-3.5" />
-            <span>My Exam History</span>
-          </button>
-        </div>
+        <SegmentedTabs<ActiveTab>
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              id: 'hub',
+              label: 'Live Exam Hub',
+              shortLabel: 'Exam Hub',
+              icon: <Radio className="w-3.5 h-3.5" />,
+              badge: liveCount > 0 ? `${liveCount} Live` : undefined,
+              badgeVariant: liveCount > 0 ? 'danger' : undefined,
+            },
+            {
+              id: 'leaderboard',
+              label: 'All-India Standings',
+              shortLabel: 'Standings',
+              icon: <Trophy className="w-3.5 h-3.5" />,
+            },
+            {
+              id: 'history',
+              label: 'My Exam History',
+              shortLabel: 'History',
+              icon: <History className="w-3.5 h-3.5" />,
+            },
+          ]}
+        />
       </div>
 
       {/* Tab 2: Leaderboard View */}
@@ -211,38 +183,6 @@ export const MockSeriesPage: React.FC = () => {
       {/* Tab 1: Live Exam Hub */}
       {activeTab === 'hub' && (
         <div className="space-y-6">
-          {/* Header Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
-                <Flame className="w-3.5 h-3.5 text-amber-500" />
-                <span>All-India Ranking Mock Engine</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-                Prelims All-India Test Series
-              </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Real exam simulation with timer, negative marking, and instant detailed scorecards.
-              </p>
-            </div>
-
-            {/* Filter */}
-            <div className="w-full sm:w-56 shrink-0">
-              <CustomSelect
-                options={[
-                  { value: 'all', label: 'All Jurisdictions' },
-                  { value: 'delhi', label: 'Delhi (DJS)' },
-                  { value: 'uttar pradesh', label: 'Uttar Pradesh (UP PCS-J)' },
-                  { value: 'all-india', label: 'All-India Special' },
-                  { value: 'haryana', label: 'Haryana (ADA & PCS-J)' },
-                ]}
-                value={filterState}
-                onChange={(val) => setFilterState(val)}
-                placeholder="All Jurisdictions"
-                sheetTitle="Filter by Jurisdiction"
-              />
-            </div>
-          </div>
 
           {/* Loading Skeletons */}
           {isLoading && <TestCardSkeleton count={6} />}

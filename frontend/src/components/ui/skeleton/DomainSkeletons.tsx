@@ -421,19 +421,41 @@ export const TestResultCardSkeleton: React.FC<{ count?: number }> = ({ count = 3
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs"
+          className="p-5 lg:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs flex flex-col md:flex-row gap-4 lg:gap-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1.5">
-              <Skeleton className="h-5 w-48 rounded-md" />
-              <Skeleton className="h-3 w-32 rounded" />
-            </div>
-            <Skeleton className="h-7 w-28 rounded-xl" />
+          {/* Left Date Pillar Skeleton */}
+          <div className="w-16 sm:w-20 lg:w-24 shrink-0 hidden md:flex flex-col items-center justify-start border-r-2 border-[#c19b48]/30 pr-3 sm:pr-4 lg:pr-5 space-y-2">
+            <Skeleton className="h-8 w-12 rounded-lg" />
+            <Skeleton className="h-3 w-16 rounded" />
+            <Skeleton className="h-2.5 w-10 rounded" />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-            {Array.from({ length: 4 }).map((_, j) => (
-              <Skeleton key={j} className="h-12 w-full rounded-xl" />
-            ))}
+
+          {/* Main Content Skeleton */}
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-60 rounded-md" />
+                  <Skeleton className="h-4 w-28 rounded-full" />
+                </div>
+                <Skeleton className="h-3 w-40 rounded" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-7 w-20 rounded-xl" />
+                <Skeleton className="h-7 w-16 rounded-xl" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <Skeleton key={j} className="h-12 w-full rounded-xl" />
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-[#143564]/50">
+              <Skeleton className="h-8 w-28 rounded-xl" />
+              <Skeleton className="h-8 w-28 rounded-xl" />
+            </div>
           </div>
         </div>
       ))}
@@ -573,9 +595,9 @@ export const BareActCardSkeleton: React.FC<{ count?: number }> = ({ count = 6 })
             <Skeleton className="h-3 w-full rounded" />
             <Skeleton className="h-3 w-5/6 rounded" />
           </div>
-          <div className="pt-4 border-t border-slate-100 dark:border-[#143564] flex justify-between items-center">
-            <Skeleton className="h-4 w-20 rounded" />
-            <Skeleton className="h-8 w-24 rounded-xl" />
+          <div className="pt-4 border-t border-slate-100 dark:border-[#143564] flex items-center gap-2">
+            <Skeleton className="h-9 flex-1 rounded-xl" />
+            <Skeleton className="h-9 w-28 rounded-xl" />
           </div>
         </div>
       ))}
@@ -598,9 +620,9 @@ export const JudgementCardSkeleton: React.FC<{ count?: number }> = ({ count = 4 
           </div>
           <Skeleton className="h-6 w-3/4 rounded-lg" />
           <Skeleton className="h-16 w-full rounded-xl" />
-          <div className="pt-2 flex justify-between items-center">
-            <Skeleton className="h-4 w-28 rounded" />
+          <div className="pt-2 flex justify-end items-center gap-2">
             <Skeleton className="h-8 w-24 rounded-xl" />
+            <Skeleton className="h-8 w-28 rounded-xl" />
           </div>
         </div>
       ))}

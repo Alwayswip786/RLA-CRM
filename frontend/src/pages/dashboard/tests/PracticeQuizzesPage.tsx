@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BookOpen,
-  Play,
   RotateCcw,
   Sparkles,
   ArrowRight,
-  Loader2,
 } from 'lucide-react';
 import { toast } from '../../../lib/toast';
 import {
@@ -147,35 +144,7 @@ export const PracticeQuizzesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 text-xs font-semibold mb-2">
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Chapter & Section Drill Engine</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Bare Act Practice Quizzes
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Master tricky Bare Act section numbers, exceptions, and illustrations with targeted daily sprints.
-          </p>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => handleStartSprint()}
-          disabled={isLaunching}
-          className="px-4 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer shadow-xs self-start sm:self-auto disabled:opacity-50"
-        >
-          {isLaunching ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Play className="w-3.5 h-3.5 fill-[#061120]" />
-          )}
-          <span>Quick 20-Question Mixed Sprint</span>
-        </button>
-      </div>
 
       {/* Loading Skeletons */}
       {isLoading && <PracticeQuizCardSkeleton count={6} />}

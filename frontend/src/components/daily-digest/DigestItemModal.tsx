@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Bookmark,
@@ -11,11 +11,14 @@ import {
   BookOpen,
   HelpCircle,
   Gavel,
+  Eye,
 } from 'lucide-react';
 import type { IDigestItem } from '../../types/dailyDigest.types';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 import { Link } from 'react-router-dom';
 import { toast } from '../../lib/toast';
+import { UniversalPdfModal } from '../pdf';
+import { API_BASE_URL } from '../../lib/apiClient';
 
 interface DigestItemModalProps {
   item: IDigestItem | null;
@@ -31,10 +34,19 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
   editionDateIST,
 }) => {
   const { isBookmarked, toggleBookmark } = useBookmarkStore();
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   if (!isOpen || !item) return null;
 
   const bookmarked = isBookmarked(item.itemId);
+
+  const pdfUrl = item.pdfFile?.path
+    ? item.pdfFile.path.startsWith('http://') ||
+      item.pdfFile.path.startsWith('https://') ||
+      item.pdfFile.path.startsWith('blob:')
+      ? item.pdfFile.path
+      : `${API_BASE_URL.replace(/\/api\/?$/, '')}${item.pdfFile.path.startsWith('/') ? '' : '/'}${item.pdfFile.path}`
+    : null;
 
   const handleToggleBookmark = async () => {
     await toggleBookmark({
@@ -248,15 +260,27 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
             </div>
 
             {item.pdfFile && (
-              <a
-                href={item.pdfFile.path}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[#c19b48] hover:underline font-semibold"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download Attached PDF ({item.pdfFile.sizeFormatted})</span>
-              </a>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPdfModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-[#c19b48] border border-[#c19b48]/30 font-semibold text-xs cursor-pointer transition-colors shadow-xs"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Read Attached PDF</span>
+                </button>
+
+                <a
+                  href={pdfUrl || item.pdfFile.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs"
+                  title="Direct Download"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>({item.pdfFile.sizeFormatted})</span>
+                </a>
+              </div>
             )}
           </div>
         </div>
@@ -271,6 +295,18 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* In-App Universal PDF Modal */}
+      {pdfUrl && (
+        <UniversalPdfModal
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+          url={pdfUrl}
+          title={item.title}
+          subtitle={`${item.categoryBadge} • ${item.subject}`}
+          downloadFileName={item.pdfFile?.originalName || `${item.title}.pdf`}
+        />
+      )}
     </div>
   );
 };

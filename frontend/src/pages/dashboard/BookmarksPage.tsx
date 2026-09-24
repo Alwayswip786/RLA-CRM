@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Bookmark,
   Trash2,
-  Search,
   BookOpen,
   Scale,
   HelpCircle,
@@ -11,13 +10,10 @@ import {
   ExternalLink,
   Edit3,
   Check,
-  X,
   Sparkles,
-  RotateCcw,
   Loader2,
   ChevronDown,
   ChevronUp,
-  Newspaper,
 } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import {
@@ -28,32 +24,15 @@ import { useBookmarkStore } from '../../store/useBookmarkStore';
 import type {
   BookmarkItem,
   BookmarkItemType,
-  BookmarkCounts,
 } from '../../types/bookmark.types';
 import { BookmarkCardSkeleton } from '../../components/ui/skeleton';
-import { CustomSelect } from '../../components/ui/CustomSelect';
 
 export const BookmarksPage: React.FC = () => {
   const navigate = useNavigate();
   const { removeBookmark, fetchBookmarkIds } = useBookmarkStore();
 
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
-  const [counts, setCounts] = useState<BookmarkCounts>({
-    totalCount: 0,
-    mcqCount: 0,
-    judgmentCount: 0,
-    bareActCount: 0,
-    digestCount: 0,
-  });
-  const [subjects, setSubjects] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Filter & Search states
-  const [activeTab, setActiveTab] = useState<'all' | BookmarkItemType>('all');
-  const [selectedSubject, setSelectedSubject] = useState<string>('all');
-  const [search, setSearch] = useState<string>('');
-  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
-  const [sortOption, setSortOption] = useState<'newest' | 'oldest' | 'title'>('newest');
 
   // Inline editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -67,38 +46,21 @@ export const BookmarksPage: React.FC = () => {
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<BookmarkItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Debounce search input
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 300);
-    return () => clearTimeout(handler);
-  }, [search]);
-
   // Fetch bookmarks from API
   const loadBookmarksData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetchBookmarks({
-        itemType: activeTab === 'all' ? undefined : activeTab,
-        subject: selectedSubject === 'all' ? undefined : selectedSubject,
-        search: debouncedSearch.trim() || undefined,
-        sort: sortOption,
-      });
+      const res = await fetchBookmarks();
 
       if (res.success) {
         setBookmarks(res.bookmarks);
-        setCounts(res.counts);
-        if (res.subjects && res.subjects.length > 0) {
-          setSubjects(res.subjects);
-        }
       }
     } catch {
       toast.error('Failed to load Starred Vault. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, selectedSubject, debouncedSearch, sortOption]);
+  }, []);
 
   useEffect(() => {
     loadBookmarksData();
@@ -170,15 +132,6 @@ export const BookmarksPage: React.FC = () => {
     }
   };
 
-  // Reset all filters
-  const handleResetFilters = () => {
-    setActiveTab('all');
-    setSelectedSubject('all');
-    setSearch('');
-    setDebouncedSearch('');
-    setSortOption('newest');
-  };
-
   // Jump to resource source
   const handleJumpToSource = (item: BookmarkItem) => {
     if (item.metadata?.targetRoute) {
@@ -236,203 +189,9 @@ export const BookmarksPage: React.FC = () => {
     }
   };
 
-  const hasActiveFilters =
-    activeTab !== 'all' || selectedSubject !== 'all' || search.trim() !== '' || sortOption !== 'newest';
-
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200 pb-16">
-      {/* 1. Header Hero Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
-            <Bookmark className="w-3.5 h-3.5 fill-current" />
-            <span>Personal Revision Vault</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Starred Questions & Legal Vault
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Fast access to bookmarked MCQs, contentious statutory sections, and high-yield judgments.
-          </p>
-        </div>
-
-        {/* Global Live Search */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter starred vault..."
-            className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48] transition-colors"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Interactive KPI Pill Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {/* Tab 1: All Items */}
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`col-span-2 sm:col-span-1 p-3.5 sm:p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            activeTab === 'all'
-              ? 'bg-[#c19b48]/10 border-[#c19b48] shadow-xs'
-              : 'bg-white dark:bg-[#0a1c36] border-slate-200 dark:border-[#143564] hover:border-slate-300 dark:hover:border-slate-700'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              All Items
-            </span>
-            <Bookmark className={`w-4 h-4 ${activeTab === 'all' ? 'text-[#c19b48]' : 'text-slate-400'}`} />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white mt-1">
-            {counts.totalCount}
-          </p>
-          <span className="text-[10px] text-slate-400">Total Bookmarked</span>
-        </button>
-
-        {/* Tab 2: MCQs & Questions */}
-        <button
-          onClick={() => setActiveTab('MCQ')}
-          className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            activeTab === 'MCQ'
-              ? 'bg-amber-500/10 border-amber-500 shadow-xs'
-              : 'bg-white dark:bg-[#0a1c36] border-slate-200 dark:border-[#143564] hover:border-slate-300 dark:hover:border-slate-700'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              MCQs & Questions
-            </span>
-            <HelpCircle className={`w-4 h-4 ${activeTab === 'MCQ' ? 'text-amber-500' : 'text-slate-400'}`} />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white mt-1">
-            {counts.mcqCount}
-          </p>
-          <span className="text-[10px] text-slate-400">Practice Problems</span>
-        </button>
-
-        {/* Tab 3: Landmark Judgments */}
-        <button
-          onClick={() => setActiveTab('Judgment')}
-          className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            activeTab === 'Judgment'
-              ? 'bg-blue-500/10 border-blue-500 shadow-xs'
-              : 'bg-white dark:bg-[#0a1c36] border-slate-200 dark:border-[#143564] hover:border-slate-300 dark:hover:border-slate-700'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Landmark Judgments
-            </span>
-            <Scale className={`w-4 h-4 ${activeTab === 'Judgment' ? 'text-blue-500' : 'text-slate-400'}`} />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white mt-1">
-            {counts.judgmentCount}
-          </p>
-          <span className="text-[10px] text-slate-400">Precedents & Ratios</span>
-        </button>
-
-        {/* Tab 4: Bare Act Notes */}
-        <button
-          onClick={() => setActiveTab('Bare Act Note')}
-          className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            activeTab === 'Bare Act Note'
-              ? 'bg-purple-500/10 border-purple-500 shadow-xs'
-              : 'bg-white dark:bg-[#0a1c36] border-slate-200 dark:border-[#143564] hover:border-slate-300 dark:hover:border-slate-700'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Bare Act Notes
-            </span>
-            <BookOpen className={`w-4 h-4 ${activeTab === 'Bare Act Note' ? 'text-purple-500' : 'text-slate-400'}`} />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white mt-1">
-            {counts.bareActCount}
-          </p>
-          <span className="text-[10px] text-slate-400">Statutory Analysis</span>
-        </button>
-
-        {/* Tab 5: Daily Legal Digest */}
-        <button
-          onClick={() => setActiveTab('Daily Digest')}
-          className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            activeTab === 'Daily Digest'
-              ? 'bg-emerald-500/10 border-emerald-500 shadow-xs'
-              : 'bg-white dark:bg-[#0a1c36] border-slate-200 dark:border-[#143564] hover:border-slate-300 dark:hover:border-slate-700'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Daily Digest
-            </span>
-            <Newspaper className={`w-4 h-4 ${activeTab === 'Daily Digest' ? 'text-emerald-500' : 'text-slate-400'}`} />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold font-serif text-slate-900 dark:text-white mt-1">
-            {counts.digestCount}
-          </p>
-          <span className="text-[10px] text-slate-400">Ratios & Maxims</span>
-        </button>
-      </div>
-
-      {/* 3. Filter Toolbar Strip */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-xs">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-          {/* Subject Filter Dropdown */}
-          <div className="w-full sm:w-60">
-            <CustomSelect
-              options={[
-                { value: 'all', label: `All Legal Subjects (${subjects.length})` },
-                ...subjects.map((sub) => ({ value: sub, label: sub })),
-              ]}
-              value={selectedSubject}
-              onChange={(val) => setSelectedSubject(val)}
-              placeholder="All Legal Subjects"
-              searchable={subjects.length > 5}
-              sheetTitle="Filter by Legal Subject"
-              sheetSubtitle="Select subject or statute to filter vault items"
-            />
-          </div>
-
-          {/* Sort Order */}
-          <div className="w-full sm:w-48">
-            <CustomSelect
-              options={[
-                { value: 'newest', label: 'Recently Starred' },
-                { value: 'oldest', label: 'Oldest First' },
-                { value: 'title', label: 'Title (A - Z)' },
-              ]}
-              value={sortOption}
-              onChange={(val) => setSortOption(val as any)}
-              placeholder="Sort Bookmarks"
-              sheetTitle="Sort Starred Vault"
-            />
-          </div>
-
-          {/* Reset Filters */}
-          {hasActiveFilters && (
-            <button
-              onClick={handleResetFilters}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-[#c19b48] hover:bg-slate-100 dark:hover:bg-[#143564]/50 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Filters</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 4. Bookmarks List */}
+    <div className={`max-w-7xl mx-auto animate-in fade-in duration-200 ${bookmarks.length > 0 ? 'space-y-6 pb-16' : ''}`}>
+      {/* Bookmarks List */}
       {isLoading ? (
         <BookmarkCardSkeleton count={3} />
       ) : bookmarks.length > 0 ? (
@@ -703,37 +462,26 @@ export const BookmarksPage: React.FC = () => {
         </div>
       ) : (
         /* Empty State */
-        <div className="p-12 text-center bg-white dark:bg-[#0a1c36] rounded-2xl border border-slate-200 dark:border-[#143564] space-y-4">
-          <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] flex items-center justify-center mx-auto">
-            <Bookmark className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
-              No starred items match your filter
+        <div className="min-h-[calc(100dvh-12rem)] flex flex-col items-center justify-center text-center space-y-4 py-8 px-4">
+          <div className="max-w-md mx-auto space-y-2">
+            <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white">
+              No starred items yet
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-              You haven&apos;t bookmarked any resources under this category or search criteria yet. Browse our repositories to star high-yield questions, sections, and judgments.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              You haven&apos;t bookmarked any resources yet. Browse our repositories to star high-yield questions, sections, and judgments.
             </p>
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-2 flex-wrap">
-            {hasActiveFilters && (
-              <button
-                onClick={handleResetFilters}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white text-xs font-semibold border border-slate-200 dark:border-[#143564] cursor-pointer"
-              >
-                Clear All Filters
-              </button>
-            )}
             <button
               onClick={() => navigate('/dashboard/bare-acts')}
-              className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              className="px-4 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] text-xs font-bold transition-colors cursor-pointer shadow-xs"
             >
               Explore Bare Act Notes
             </button>
             <button
               onClick={() => navigate('/dashboard/judgements')}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white text-xs font-semibold border border-slate-200 dark:border-[#143564] cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white text-xs font-semibold border border-slate-200 dark:border-[#143564] cursor-pointer"
             >
               Browse Landmark Judgments
             </button>

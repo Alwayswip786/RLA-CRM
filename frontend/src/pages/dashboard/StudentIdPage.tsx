@@ -52,10 +52,6 @@ export const StudentIdPage: React.FC = () => {
       {/* Center ID Card Showcase */}
       <div className="flex justify-center">
         <div className="w-full max-w-md bg-gradient-to-b from-white via-slate-50 to-slate-100 dark:from-[#0a1c36] dark:via-[#0e274b] dark:to-[#061120] border-2 border-[#c19b48]/60 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5 text-slate-900 dark:text-white relative overflow-hidden">
-          {/* Watermark Logo */}
-          <div className="absolute right-[-20px] bottom-[-20px] opacity-5 pointer-events-none">
-            <img src="/logo.png" alt="RLA" className="w-64 h-64" />
-          </div>
 
           {/* Card Top Branding */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#143564] pb-4">

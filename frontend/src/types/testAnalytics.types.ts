@@ -52,3 +52,42 @@ export interface TestAnalyticsResponse {
   reports: TestReportItem[];
   message?: string;
 }
+
+export type AnalysisTabId =
+  | 'mock-tests'
+  | 'sectional'
+  | 'subject-wise'
+  | 'time'
+  | 'rank-trend'
+  | 'topics';
+
+export type ExamFilterOption =
+  | 'All India Judicial Services'
+  | 'Delhi Judicial Services (DJS 2026)'
+  | 'Haryana ADA / Judicial Services'
+  | 'UP PCS-J Foundation'
+  | 'All Exams';
+
+export type TimeframeFilterOption =
+  | 'Last 30 Days'
+  | 'Last 3 Months'
+  | 'Last 6 Months'
+  | 'Last 1 Year'
+  | 'All Time';
+
+export interface AggregateAnalyticsSummary {
+  currentAir: number;
+  totalAspirants: number;
+  percentile: number;
+  rankDelta: number; // positive = ranks improved
+  overallAccuracy: number;
+  targetAccuracy: number;
+  avgTimePerMcq: number;
+  timeImprovementPct: number;
+  negativeMarksPenalty: number;
+  incorrectQuestions: number;
+  penaltyReductionPct: number;
+  paceSparkline: number[];
+  penaltyBars: number[];
+}
+

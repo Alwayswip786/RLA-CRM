@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, X, RotateCcw } from 'lucide-react';
 import type { PyqFilterParams } from '../../types/pyq.types';
 import { CustomSelect, type SelectOption } from '../ui/CustomSelect';
+import { SegmentedTabs } from '../ui/tabs';
 
 interface PyqFilterBarProps {
   filters: PyqFilterParams;
@@ -120,24 +121,18 @@ export const PyqFilterBar: React.FC<PyqFilterBarProps> = ({
           </div>
 
           {/* Stage Pills */}
-          <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] h-9">
-            {(['all', 'Prelims', 'Mains'] as const).map((stage) => {
-              const active = (filters.stage || 'all').toLowerCase() === stage.toLowerCase();
-              return (
-                <button
-                  key={stage}
-                  onClick={() => onChange({ ...filters, stage: stage === 'all' ? 'all' : stage, page: 1 })}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    active
-                      ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  {stage === 'all' ? 'All Stages' : stage}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedTabs<string>
+            value={filters.stage || 'all'}
+            onChange={(val) =>
+              onChange({ ...filters, stage: val === 'all' ? 'all' : (val as any), page: 1 })
+            }
+            size="sm"
+            items={[
+              { id: 'all', label: 'All Stages', shortLabel: 'All' },
+              { id: 'Prelims', label: 'Prelims' },
+              { id: 'Mains', label: 'Mains' },
+            ]}
+          />
 
           {/* Reset Filters */}
           {isFiltered && (

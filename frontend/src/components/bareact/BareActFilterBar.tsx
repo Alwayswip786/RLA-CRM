@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, X, RotateCcw } from 'lucide-react';
 import type { BareActFilterParams, ActCategory } from '../../types/bareAct.types';
 import { CustomSelect, type SelectOption } from '../ui/CustomSelect';
+import { ScrollableTabs } from '../ui/tabs';
 
 interface BareActFilterBarProps {
   filters: BareActFilterParams;
@@ -10,13 +11,13 @@ interface BareActFilterBarProps {
   onReset: () => void;
 }
 
-const CATEGORY_TABS: { label: string; value: string }[] = [
-  { label: 'All Categories', value: 'all' },
-  { label: 'New Criminal Laws (BNS/BNSS/BSA)', value: 'New Criminal Laws' },
-  { label: 'Major Procedural (CPC/CrPC)', value: 'Major Procedural Act' },
-  { label: 'Major Substantive (IPC/Constitution)', value: 'Major Substantive Act' },
-  { label: 'Civil & Property Law', value: 'Civil & Property Law' },
-  { label: 'Commercial & Corporate Law', value: 'Commercial & Corporate Law' },
+const CATEGORY_TABS: { label: string; shortLabel?: string; value: string }[] = [
+  { label: 'All Categories', shortLabel: 'All', value: 'all' },
+  { label: 'New Criminal Laws (BNS/BNSS/BSA)', shortLabel: 'Criminal Laws (BNS)', value: 'New Criminal Laws' },
+  { label: 'Major Procedural (CPC/CrPC)', shortLabel: 'Procedural (CPC/CrPC)', value: 'Major Procedural Act' },
+  { label: 'Major Substantive (IPC/Constitution)', shortLabel: 'Substantive (IPC)', value: 'Major Substantive Act' },
+  { label: 'Civil & Property Law', shortLabel: 'Civil & Property', value: 'Civil & Property Law' },
+  { label: 'Commercial & Corporate Law', shortLabel: 'Corporate Law', value: 'Commercial & Corporate Law' },
 ];
 
 export const BareActFilterBar: React.FC<BareActFilterBarProps> = ({
@@ -54,26 +55,18 @@ export const BareActFilterBar: React.FC<BareActFilterBarProps> = ({
   return (
     <div className="space-y-4">
       {/* 1. Category Pill Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs font-semibold">
-        {CATEGORY_TABS.map((tab) => {
-          const isActive =
-            (!filters.category && tab.value === 'all') || filters.category === tab.value;
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => onChange({ category: tab.value === 'all' ? 'all' : (tab.value as ActCategory) })}
-              className={`px-3.5 py-2 rounded-xl shrink-0 transition-all cursor-pointer border ${
-                isActive
-                  ? 'bg-[#c19b48] text-[#061120] border-[#c19b48] shadow-xs'
-                  : 'bg-white dark:bg-[#0a1c36] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/50 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <ScrollableTabs<string>
+        value={filters.category || 'all'}
+        onChange={(val) =>
+          onChange({ category: val === 'all' ? 'all' : (val as ActCategory) })
+        }
+        variant="pill"
+        items={CATEGORY_TABS.map((tab) => ({
+          id: tab.value,
+          label: tab.label,
+          shortLabel: tab.shortLabel,
+        }))}
+      />
 
       {/* 2. Search & Select Filters */}
       <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs">

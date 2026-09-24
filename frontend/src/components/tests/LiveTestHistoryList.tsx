@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  History,
   Clock,
   ArrowRight,
   Loader2,
@@ -56,56 +55,8 @@ export const LiveTestHistoryList: React.FC<LiveTestHistoryListProps> = ({ onOpen
     return `${mins}m ${secs}s`;
   };
 
-  const totalExams = history.length;
-  const bestRank = history.reduce<number | null>((min, h) => {
-    if (h.rank && (!min || h.rank < min)) return h.rank;
-    return min;
-  }, null);
-
-  const avgAccuracy =
-    totalExams > 0
-      ? Math.round(history.reduce((sum, h) => sum + h.accuracy, 0) / totalExams)
-      : 0;
-
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 text-xs font-semibold mb-2">
-            <History className="w-3.5 h-3.5" />
-            <span>Official Examination Records</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            My Live Test History & Scorecards
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Reopen previous exams, review question-by-question statutory solutions, and trace performance gains.
-          </p>
-        </div>
-
-        {/* Summary Metrics */}
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Exams Taken</span>
-            <span className="text-base font-bold text-slate-900 dark:text-white font-mono">
-              {totalExams}
-            </span>
-          </div>
-          <div className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Best AIR</span>
-            <span className="text-base font-bold text-[#c19b48] dark:text-[#e8cf8d] font-mono">
-              {bestRank ? `#${bestRank}` : '—'}
-            </span>
-          </div>
-          <div className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Avg Accuracy</span>
-            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-              {avgAccuracy}%
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* Loading Skeletons */}
       {isLoading && <TestHistoryCardSkeleton count={3} />}

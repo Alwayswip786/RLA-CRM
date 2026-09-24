@@ -485,6 +485,15 @@ export const adminScheduleClass = catchAsync(async (req: Request, res: Response)
     handoutPdf,
   });
 
+  const ns = getLiveClassNamespace();
+  ns?.emit('live_class:global_status_changed', {
+    classId: String(newClass._id),
+    status: 'scheduled',
+    title: newClass.title,
+    subject: newClass.subject,
+    startTime: newClass.startTime,
+  });
+
   res.status(201).json({
     status: 'success',
     data: newClass,
@@ -522,6 +531,13 @@ export const adminStartClass = catchAsync(async (req: Request, res: Response) =>
     classId: String(liveClass._id),
     status: 'live',
   });
+  ns?.emit('live_class:global_status_changed', {
+    classId: String(liveClass._id),
+    status: 'live',
+    title: liveClass.title,
+    subject: liveClass.subject,
+    startTime: liveClass.startTime,
+  });
 
   res.status(200).json({
     status: 'success',
@@ -548,9 +564,13 @@ export const adminEndClass = catchAsync(async (req: Request, res: Response) => {
   liveClass.actualEndedAt = new Date();
   await liveClass.save();
 
-  // Broadcast to room
+  // Broadcast to room and global
   const ns = getLiveClassNamespace();
   ns?.to(classRoom(String(liveClass._id))).emit('live_class:status_changed', {
+    classId: String(liveClass._id),
+    status: 'ended',
+  });
+  ns?.emit('live_class:global_status_changed', {
     classId: String(liveClass._id),
     status: 'ended',
   });

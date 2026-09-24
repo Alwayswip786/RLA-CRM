@@ -17,6 +17,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { apiClient } from '../../lib/apiClient';
 import { loginWithGoogle } from '../../lib/auth.utils';
+import { SegmentedTabs } from '../../components/ui/tabs';
 
 // Schema for Email Registration
 const emailSignupSchema = z
@@ -153,33 +154,25 @@ export const Signup: React.FC = () => {
       subtitle="Register for batch admissions, classroom lectures & all-India mock tests."
     >
       {/* Registration Mode Tabs */}
-      <div className="flex rounded-xl bg-slate-100 dark:bg-[#061120] p-1 border border-slate-200 dark:border-[#143564] mb-3.5 sm:mb-4">
-        <button
-          type="button"
-          onClick={() => setActiveTab('email')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'email'
-              ? 'bg-[#c19b48] text-[#061120] font-bold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Mail className="w-3.5 h-3.5" />
-          <span>Register with Email</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('mobile')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'mobile'
-              ? 'bg-[#c19b48] text-[#061120] font-bold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Phone className="w-3.5 h-3.5" />
-          <span>Register with Mobile No.</span>
-        </button>
-      </div>
+      <SegmentedTabs<'email' | 'mobile'>
+        value={activeTab}
+        onChange={setActiveTab}
+        className="mb-3.5 sm:mb-4"
+        items={[
+          {
+            id: 'email',
+            label: 'Register with Email',
+            shortLabel: 'Email',
+            icon: <Mail className="w-3.5 h-3.5" />,
+          },
+          {
+            id: 'mobile',
+            label: 'Register with Mobile No.',
+            shortLabel: 'Mobile No.',
+            icon: <Phone className="w-3.5 h-3.5" />,
+          },
+        ]}
+      />
 
       {activeTab === 'email' ? (
         <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-3.5 sm:space-y-4">

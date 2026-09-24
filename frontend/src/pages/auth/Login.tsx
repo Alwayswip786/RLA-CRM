@@ -10,6 +10,7 @@ import { AuthLayout } from '../../layouts/AuthLayout';
 import { useAuthStore } from '../../store/useAuthStore';
 import { apiClient } from '../../lib/apiClient';
 import { loginWithGoogle } from '../../lib/auth.utils';
+import { SegmentedTabs } from '../../components/ui/tabs';
 
 // Schema for Password Login
 const passwordLoginSchema = z.object({
@@ -168,33 +169,25 @@ export const Login: React.FC = () => {
       subtitle="Enter your credentials to access your judicial batches, notes & test series."
     >
       {/* Login Mode Tabs */}
-      <div className="flex rounded-xl bg-slate-100 dark:bg-[#061120] p-1 border border-slate-200 dark:border-[#143564] mb-3 sm:mb-3.5">
-        <button
-          type="button"
-          onClick={() => setActiveTab('password')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'password'
-              ? 'bg-[#c19b48] text-[#061120] font-bold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Lock className="w-3.5 h-3.5" />
-          <span>Roll No. / Password</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('otp')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'otp'
-              ? 'bg-[#c19b48] text-[#061120] font-bold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Phone className="w-3.5 h-3.5" />
-          <span>Login with OTP</span>
-        </button>
-      </div>
+      <SegmentedTabs<'password' | 'otp'>
+        value={activeTab}
+        onChange={setActiveTab}
+        className="mb-3 sm:mb-3.5"
+        items={[
+          {
+            id: 'password',
+            label: 'Roll No. / Password',
+            shortLabel: 'Password',
+            icon: <Lock className="w-3.5 h-3.5" />,
+          },
+          {
+            id: 'otp',
+            label: 'Login with OTP',
+            shortLabel: 'OTP Login',
+            icon: <Phone className="w-3.5 h-3.5" />,
+          },
+        ]}
+      />
 
       {/* Tab 1: Password Login Form */}
       {activeTab === 'password' && (

@@ -167,6 +167,16 @@ function App() {
           }
         />
 
+        {/* Dedicated Fullscreen Live Classroom Chamber (100dvh standalone layout bypassing sidebar/navbar) */}
+        <Route
+          path="/dashboard/live-classes"
+          element={
+            <ProtectedRoute>
+              <LiveClassesPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Classroom Portal / Dashboard Nested Routes */}
         <Route
           path="/dashboard"
@@ -178,7 +188,6 @@ function App() {
         >
           <Route index element={<DashboardPreview />} />
           <Route path="courses" element={<CoursesHubPage />} />
-          <Route path="live-classes" element={<LiveClassesPage />} />
           <Route path="timetable" element={<TimetablePage />} />
           <Route path="daily-digest" element={<DailyDigestPage />} />
 

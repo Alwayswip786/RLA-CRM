@@ -72,6 +72,10 @@ export interface PyqsResponse {
   total: number;
   page: number;
   totalPages: number;
+  hasNextPage?: boolean;
+  hasMore?: boolean;
+  hasPrevPage?: boolean;
+  nextPage?: number | null;
   pyqs: PyqPaper[];
 }
 

@@ -19,12 +19,16 @@ import {
 } from '../../services/judgement.service';
 import { toast } from '../../lib/toast';
 import { DocumentViewerSkeleton } from '../ui/skeleton';
+import { UniversalPdfViewer } from '../pdf';
+import { ScrollableTabs } from '../ui/tabs';
 
 interface JudgementAnalysisModalProps {
   judgement: JudgementDigest | null;
   isOpen: boolean;
   onClose: () => void;
 }
+
+type TabType = 'analysis' | 'holdings' | 'provisions' | 'exam' | 'pdf';
 
 export const JudgementAnalysisModal: React.FC<JudgementAnalysisModalProps> = ({
   judgement,
@@ -178,73 +182,48 @@ export const JudgementAnalysisModal: React.FC<JudgementAnalysisModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 pt-3 border-b border-slate-200 dark:border-[#143564]/60 bg-white dark:bg-[#061120] overflow-x-auto no-scrollbar select-none">
-          <button
-            type="button"
-            onClick={() => setActiveTab('analysis')}
-            className={`flex items-center gap-2 pb-2.5 px-3 border-b-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-colors ${
-              activeTab === 'analysis'
-                ? 'border-[#c19b48] text-[#c19b48]'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Analytical Briefing</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('holdings')}
-            className={`flex items-center gap-2 pb-2.5 px-3 border-b-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-colors ${
-              activeTab === 'holdings'
-                ? 'border-[#c19b48] text-[#c19b48]'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            <Scale className="w-4 h-4" />
-            <span>Key Holdings & Ratio</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('provisions')}
-            className={`flex items-center gap-2 pb-2.5 px-3 border-b-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-colors ${
-              activeTab === 'provisions'
-                ? 'border-[#c19b48] text-[#c19b48]'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Provisions & Precedents</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('exam')}
-            className={`flex items-center gap-2 pb-2.5 px-3 border-b-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-colors ${
-              activeTab === 'exam'
-                ? 'border-[#c19b48] text-[#c19b48]'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            <span>Mains & Prelims Utility</span>
-          </button>
-
-          {judgement.pdfFile && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('pdf')}
-              className={`flex items-center gap-2 pb-2.5 px-3 border-b-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-colors ${
-                activeTab === 'pdf'
-                  ? 'border-[#c19b48] text-[#c19b48]'
-                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              <Download className="w-4 h-4" />
-              <span>Official PDF Reader</span>
-            </button>
-          )}
+        <div className="px-3 sm:px-6 pt-3 bg-white dark:bg-[#061120]">
+          <ScrollableTabs<TabType>
+            value={activeTab}
+            onChange={setActiveTab}
+            variant="underline"
+            items={[
+              {
+                id: 'analysis',
+                label: 'Analytical Briefing',
+                shortLabel: 'Briefing',
+                icon: <FileText className="w-4 h-4" />,
+              },
+              {
+                id: 'holdings',
+                label: 'Key Holdings & Ratio',
+                shortLabel: 'Holdings',
+                icon: <Scale className="w-4 h-4" />,
+              },
+              {
+                id: 'provisions',
+                label: 'Provisions & Precedents',
+                shortLabel: 'Precedents',
+                icon: <BookOpen className="w-4 h-4" />,
+              },
+              {
+                id: 'exam',
+                label: 'Mains & Prelims Utility',
+                shortLabel: 'Exam Utility',
+                icon: <Award className="w-4 h-4" />,
+              },
+              ...(judgement.pdfFile
+                ? [
+                    {
+                      id: 'pdf' as TabType,
+                      label: 'Official PDF Reader',
+                      shortLabel: 'PDF Reader',
+                      icon: <Download className="w-4 h-4" />,
+                    },
+                  ]
+                : []),
+            ]}
+          />
         </div>
 
         {/* Tab Content Body */}
@@ -491,11 +470,13 @@ export const JudgementAnalysisModal: React.FC<JudgementAnalysisModalProps> = ({
                       <DocumentViewerSkeleton />
                     </div>
                   ) : pdfBlobUrl ? (
-                    <iframe
-                      src={pdfBlobUrl}
-                      title="Judgement PDF Viewer"
-                      className="w-full h-[60vh] rounded-xl border border-slate-200 dark:border-[#143564]"
-                    />
+                    <div className="h-[65vh] rounded-xl border border-slate-200 dark:border-[#143564] overflow-hidden">
+                      <UniversalPdfViewer
+                        source={pdfBlobUrl}
+                        title={judgement.title}
+                        className="w-full h-full"
+                      />
+                    </div>
                   ) : (
                     <div className="h-48 flex items-center justify-center text-xs text-slate-400">
                       Unable to stream PDF preview. Please use the download button above.

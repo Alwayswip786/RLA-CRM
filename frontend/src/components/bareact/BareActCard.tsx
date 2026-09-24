@@ -183,17 +183,7 @@ export const BareActCard: React.FC<BareActCardProps> = ({
       </div>
 
       {/* Footer Strip with Action Buttons */}
-      <div className="pt-4 border-t border-slate-100 dark:border-[#143564] space-y-3">
-        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-          <span className="font-mono">
-            {note.pdfFile?.pageCount ? `${note.pdfFile.pageCount} pp • ` : ''}
-            {note.pdfFile?.sizeFormatted}
-          </span>
-          <span className="truncate max-w-[160px]">
-            {note.downloadCount || 0} Downloads
-          </span>
-        </div>
-
+      <div className="pt-4 border-t border-slate-100 dark:border-[#143564]">
         <div className="flex items-center gap-2">
           {/* Read Online in In-App PDF Viewer */}
           <button

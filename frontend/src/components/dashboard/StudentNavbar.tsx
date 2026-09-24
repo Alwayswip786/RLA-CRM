@@ -12,6 +12,7 @@ import { ThemeSwitcher } from './ThemeSwitcher';
 import { BottomSheet } from '../ui/BottomSheet';
 import { useIsDesktop } from '../../hooks/use-responsive';
 import { toast } from '../../lib/toast';
+import { apiClient } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNoticeStore } from '../../store/useNoticeStore';
 import { cn } from '../../utils/cn';
@@ -21,6 +22,66 @@ interface StudentNavbarProps {
   isMobileOpen?: boolean;
   onToggleSidebar: () => void;
   onOpenMobileSidebar: () => void;
+}
+
+interface LiveLectureInfo {
+  id: string;
+  title: string;
+  subject: string;
+  startTime?: string;
+  status: string;
+  isLive: boolean;
+  displayText: string;
+  url: string;
+}
+
+function formatLectureSubject(subjectOrTitle: string): string {
+  if (!subjectOrTitle) return 'Judicial';
+  const parenMatch = subjectOrTitle.match(/\(([^)]+)\)/);
+  if (parenMatch && parenMatch[1].length <= 8) {
+    return parenMatch[1].trim();
+  }
+  const lower = subjectOrTitle.toLowerCase();
+  if (lower.includes('civil procedure') || lower.includes('cpc')) return 'CPC';
+  if (lower.includes('criminal procedure') || lower.includes('crpc')) return 'CrPC';
+  if (lower.includes('penal code') || lower.includes('ipc')) return 'IPC';
+  if (lower.includes('nagarik suraksha') || lower.includes('bnss')) return 'BNSS';
+  if (lower.includes('nyaya sanhita') || lower.includes('bns')) return 'BNS';
+  if (lower.includes('sakshya') || lower.includes('bsa')) return 'BSA';
+  if (lower.includes('evidence')) return 'Evidence';
+  if (lower.includes('constitution')) return 'Constitution';
+  if (lower.includes('contract')) return 'Contract';
+  if (lower.includes('tort')) return 'Torts';
+  if (lower.includes('limitation')) return 'Limitation';
+  if (lower.includes('specific relief') || lower.includes('sra')) return 'SRA';
+  if (lower.includes('family law')) return 'Family Law';
+  if (lower.includes('prelims speed test') || lower.includes('test series')) return 'Mock Test';
+  if (lower.includes('doubt session')) return 'Doubt Session';
+  if (subjectOrTitle.length <= 14) return subjectOrTitle;
+  return subjectOrTitle.slice(0, 12).trim() + '...';
+}
+
+function formatLectureTime(timeStr?: string): string {
+  if (!timeStr) return '';
+  const trimmed = timeStr.trim();
+  const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampmMatch) {
+    const hour = parseInt(ampmMatch[1], 10);
+    const minute = ampmMatch[2];
+    const ampm = ampmMatch[3].toUpperCase();
+    if (minute === '00') return `${hour} ${ampm}`;
+    return `${hour}:${minute} ${ampm}`;
+  }
+  const militaryMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (militaryMatch) {
+    let hour = parseInt(militaryMatch[1], 10);
+    const minute = militaryMatch[2];
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    if (minute === '00') return `${hour} ${ampm}`;
+    return `${hour}:${minute} ${ampm}`;
+  }
+  return trimmed;
 }
 
 export const StudentNavbar: React.FC<StudentNavbarProps> = ({
@@ -50,6 +111,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isDesktop = useIsDesktop(1024);
+  const [liveLecture, setLiveLecture] = useState<LiveLectureInfo | null>(null);
 
   // Refs for outside-click detection
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -92,6 +154,87 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isNotificationOpen, isUserMenuOpen]);
+
+  // Fetch dynamic live schedule if lectures are scheduled from admin panel
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLiveSchedule = async () => {
+      try {
+        // 1. Check currently active live session or next scheduled from LiveClass
+        const liveRes = await apiClient.get('/live-classes/current');
+        if (liveRes.data?.data?.class) {
+          const cls = liveRes.data.data.class;
+          if (['live', 'upcoming', 'scheduled'].includes(cls.status)) {
+            const rawSubject = cls.subject || cls.title;
+            const subjectText = formatLectureSubject(rawSubject);
+            const timeText = formatLectureTime(cls.startTime);
+            if (isMounted) {
+              setLiveLecture({
+                id: cls._id,
+                title: cls.title,
+                subject: rawSubject,
+                startTime: cls.startTime,
+                status: cls.status,
+                isLive: cls.status === 'live',
+                displayText: timeText
+                  ? `Live: ${subjectText} Lecture at ${timeText}`
+                  : `Live: ${subjectText} Lecture`,
+                url: '/dashboard/live-classes',
+              });
+            }
+            return;
+          }
+        }
+
+        // 2. Fallback to today's upcoming/ongoing timetable slot
+        const timetableRes = await apiClient.get('/timetable/upcoming');
+        if (timetableRes.data?.success && timetableRes.data?.upcomingClass) {
+          const slot = timetableRes.data.upcomingClass;
+          const rawSubject = slot.subject || slot.topic;
+          const time = slot.startTime || (slot.time ? slot.time.split('–')[0]?.trim() : '');
+          const subjectText = formatLectureSubject(rawSubject);
+          const timeText = formatLectureTime(time);
+          if (isMounted) {
+            setLiveLecture({
+              id: slot.slotId,
+              title: slot.topic || slot.subject,
+              subject: rawSubject,
+              startTime: time,
+              status: slot.status,
+              isLive: slot.status === 'ongoing',
+              displayText: timeText
+                ? `Live: ${subjectText} Lecture at ${timeText}`
+                : `Live: ${subjectText} Lecture`,
+              url: '/dashboard/live-classes',
+            });
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setLiveLecture(null);
+        }
+      } catch {
+        if (isMounted) {
+          setLiveLecture(null);
+        }
+      }
+    };
+
+    fetchLiveSchedule();
+    const interval = setInterval(fetchLiveSchedule, 45000); // Poll every 45s
+    const onFocus = () => {
+      fetchLiveSchedule();
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
 
   // Generate breadcrumb text
   const getBreadcrumb = () => {
@@ -167,14 +310,24 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
 
         {/* Right Side: Search, Live Pulse, Notifications, ThemeSwitcher, Profile */}
         <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0">
-          {/* Live Lecture Pulse Status */}
-          <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-            </span>
-            <span className="text-[11px]">Live: CPC Lecture at 5 PM</span>
-          </div>
+          {/* Dynamic Live Schedule Badge (from Admin Panel) */}
+          {liveLecture && (
+            <button
+              type="button"
+              onClick={() => navigate(liveLecture.url)}
+              title={`${liveLecture.title} • Click to enter Live Classroom`}
+              aria-label={`Live lecture: ${liveLecture.displayText}`}
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-500/25 transition-all cursor-pointer select-none active:scale-[0.98]"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+              </span>
+              <span className="text-[11px] font-semibold tracking-tight whitespace-nowrap">
+                {liveLecture.displayText}
+              </span>
+            </button>
+          )}
 
           {/* Dark / Light Mode Switcher */}
           <ThemeSwitcher />

@@ -1,25 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
   Play,
-  Clock,
-  User,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize2,
+  Minimize2,
+  Settings,
+  Users,
   MessageSquare,
   Send,
+  Paperclip,
   Download,
-  Sparkles,
-  Search,
+  Bookmark,
+  Clock,
+  User,
+  Radio,
+  ChevronLeft,
+  ChevronRight,
   ThumbsUp,
   ThumbsDown,
   X,
   Loader2,
-  Bell,
+  Eye,
+  Pin,
 } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import { io, type Socket } from 'socket.io-client';
 import { apiClient, getAccessToken } from '../../lib/apiClient';
 import { useAuthStore } from '../../store/useAuthStore';
-import { CustomSelect } from '../../components/ui/CustomSelect';
 import { LiveStreamCanvasSkeleton, RecordingCardSkeleton } from '../../components/ui/skeleton';
+import { UniversalPdfModal } from '../../components/pdf';
+import { SegmentedTabs } from '../../components/ui/tabs';
+import { ThemeSwitcher } from '../../components/dashboard/ThemeSwitcher';
 
 interface ChatMessage {
   id: string;
@@ -51,7 +66,7 @@ interface LiveClassData {
   status: 'scheduled' | 'upcoming' | 'live' | 'ended' | 'archived';
   currentLiveCount: number;
   sessionTopic: string;
-  learningFocus: LearningFocusItem[];
+  learningFocus?: LearningFocusItem[];
   handoutPdf?: {
     fileName: string;
     fileUrl: string;
@@ -92,23 +107,115 @@ interface ArchivedComment {
   likesCount: number;
 }
 
+interface OtherLiveSession {
+  id: string;
+  title: string;
+  subtitle: string;
+  badge?: string;
+  isLive?: boolean;
+  date?: string;
+  time?: string;
+}
+
+const DEFAULT_CHAMBER_MESSAGES: ChatMessage[] = [
+  {
+    id: 'm1',
+    sender: 'Aman Singh',
+    role: 'student',
+    text: 'Sir, is this provision applicable to both cognizable and non-cognizable offences?',
+    time: '7:02 PM',
+  },
+  {
+    id: 'm2',
+    sender: 'Priya Deshmukh',
+    role: 'student',
+    text: 'Can you please explain the latest amendment in Sec 173?',
+    time: '7:04 PM',
+  },
+  {
+    id: 'm3',
+    sender: 'Adv. Sharma',
+    role: 'faculty',
+    text: 'Yes, it applies to both. The timelines differ. Let me explain with an example...',
+    time: '7:05 PM',
+    isFacultyMessage: true,
+    isPinned: true,
+  },
+  {
+    id: 'm4',
+    sender: 'Rohit Kumar',
+    role: 'student',
+    text: 'Sir, will this be asked in Mains?',
+    time: '7:06 PM',
+  },
+  {
+    id: 'm5',
+    sender: 'Adv. Sharma',
+    role: 'faculty',
+    text: "Yes, it's very important for both Mains and Interview. Make short notes of key provisions.",
+    time: '7:07 PM',
+    isFacultyMessage: true,
+    isPinned: true,
+  },
+];
+
+const OTHER_SESSIONS: OtherLiveSession[] = [
+  {
+    id: 's1',
+    title: 'BNSS - Key Provisions',
+    subtitle: 'Live Now • Adv. Sharma',
+    isLive: true,
+    badge: 'LIVE',
+  },
+  {
+    id: 's2',
+    title: 'BNS - Important Sections',
+    subtitle: 'Tomorrow • 7:00 PM',
+    date: 'Tomorrow',
+    time: '7:00 PM',
+  },
+  {
+    id: 's3',
+    title: 'Evidence Act - Case Laws',
+    subtitle: 'Oct 2 • 6:00 PM',
+    date: 'Oct 2',
+    time: '6:00 PM',
+  },
+  {
+    id: 's4',
+    title: 'Judicial Ethics & Conduct',
+    subtitle: 'Oct 3 • 7:00 PM',
+    date: 'Oct 3',
+    time: '7:00 PM',
+  },
+];
+
 export const LiveClassesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'stream' | 'recordings'>('stream');
 
   // Live Stream State
   const [liveClass, setLiveClass] = useState<LiveClassData | null>(null);
-  const [liveCount, setLiveCount] = useState<number>(184);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [liveCount, setLiveCount] = useState<number>(1);
+  const [messages, setMessages] = useState<ChatMessage[]>(DEFAULT_CHAMBER_MESSAGES);
   const [newMsg, setNewMsg] = useState('');
   const [isLoadingStream, setIsLoadingStream] = useState(true);
-  const [isPlayingSession, setIsPlayingSession] = useState(false);
+  const [isPlayingSession, setIsPlayingSession] = useState(true);
+
+  // Video Controls State
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [volume, setVolume] = useState(80);
+  const [isMuted, setIsMuted] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState('1x');
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [isCcActive, setIsCcActive] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   // Archives State
   const [archives, setArchives] = useState<ArchivedClassItem[]>([]);
   const [isLoadingArchives, setIsLoadingArchives] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState<string>('all');
 
   // Active Watched Archive Modal
   const [selectedArchive, setSelectedArchive] = useState<ArchivedClassItem | null>(null);
@@ -117,11 +224,62 @@ export const LiveClassesPage: React.FC = () => {
   const [userReaction, setUserReaction] = useState<'like' | 'dislike' | null>(null);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  // Upcoming Alert subscription
-  const [isAlertSubscribed, setIsAlertSubscribed] = useState(false);
+  // In-App Handout/Notes PDF Viewer
+  const [activeHandoutPdf, setActiveHandoutPdf] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+    filename?: string;
+  } | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const carouselTrackRef = useRef<HTMLDivElement | null>(null);
+
+  // Lock body scroll while in fullscreen chamber
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  // Sync Fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Visual Viewport resize handler for mobile keyboard
+  useEffect(() => {
+    const handleResize = () => {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+    window.visualViewport?.addEventListener('resize', handleResize);
+    return () => window.visualViewport?.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Back Navigation Helper
+  const handleBack = () => {
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  // Toggle Native Fullscreen
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
 
   // 1. Fetch Current Live Class Data
   const fetchCurrentClass = async () => {
@@ -131,8 +289,8 @@ export const LiveClassesPage: React.FC = () => {
       if (res.data?.data?.class) {
         const cls = res.data.data.class;
         setLiveClass(cls);
-        setLiveCount(cls.currentLiveCount || 184);
-        if (res.data.data.initialMessages) {
+        setLiveCount(cls.currentLiveCount || 1);
+        if (res.data.data.initialMessages && res.data.data.initialMessages.length > 0) {
           setMessages(res.data.data.initialMessages);
         }
       }
@@ -223,13 +381,23 @@ export const LiveClassesPage: React.FC = () => {
   // Handle Send Chat Message
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMsg.trim() || !liveClass?._id) return;
+    if (!newMsg.trim()) return;
 
     const socket = socketRef.current;
     const textToSend = newMsg.trim();
     setNewMsg('');
 
-    if (socket && socket.connected) {
+    const localMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: user?.name || 'Adv. Rohit Verma',
+      role: (user?.role as any) || 'student',
+      text: textToSend,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isFacultyMessage: user?.role === 'faculty' || user?.role === 'admin',
+      isDoubt: true,
+    };
+
+    if (socket && socket.connected && liveClass?._id) {
       socket.emit(
         'live_class:send_chat',
         {
@@ -246,19 +414,13 @@ export const LiveClassesPage: React.FC = () => {
         }
       );
     } else {
-      // Optimistic fallback
-      const localMsg: ChatMessage = {
-        id: Date.now().toString(),
-        sender: user?.name || 'Adv. Rohit Verma',
-        role: (user?.role as any) || 'student',
-        text: textToSend,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isFacultyMessage: user?.role === 'faculty' || user?.role === 'admin',
-        isDoubt: true,
-      };
       setMessages((prev) => [...prev, localMsg]);
       toast.success('Doubt submitted to lecture queue');
     }
+
+    setTimeout(() => {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
   };
 
   // Connect / Join Session via Video SDK
@@ -300,9 +462,10 @@ export const LiveClassesPage: React.FC = () => {
   const handleReactArchive = async (reaction: 'like' | 'dislike') => {
     if (!selectedArchive) return;
     try {
-      const res = await apiClient.post(`/live-classes/archives/${selectedArchive._id || selectedArchive.id}/react`, {
-        reaction,
-      });
+      const res = await apiClient.post(
+        `/live-classes/archives/${selectedArchive._id || selectedArchive.id}/react`,
+        { reaction }
+      );
       if (res.data?.data) {
         setUserReaction(res.data.data.userReaction);
         setSelectedArchive((prev) =>
@@ -343,281 +506,528 @@ export const LiveClassesPage: React.FC = () => {
     }
   };
 
-  // Toggle Alert Reminder
-  const handleToggleAlert = async () => {
-    if (!liveClass) return;
-    try {
-      const res = await apiClient.post(`/live-classes/${liveClass._id}/alert-toggle`);
-      setIsAlertSubscribed(res.data?.data?.isSubscribed);
-      toast.success(res.data?.message || 'Reminder updated.');
-    } catch (err) {
-      toast.error('Failed to toggle reminder.');
-    }
-  };
-
-  // Download Handout PDF
-  const handleDownloadHandout = () => {
-    if (liveClass?.handoutPdf?.fileUrl) {
-      window.open(liveClass.handoutPdf.fileUrl, '_blank');
-      toast.success(`Downloading ${liveClass.handoutPdf.fileName}`);
+  // Add to Notes Bookmark handler
+  const handleAddToNotes = () => {
+    setIsBookmarked((prev) => !prev);
+    if (!isBookmarked) {
+      toast.success('Lecture timestamp & BNSS citation saved to your Study Notes!');
     } else {
-      toast.success('Lecture handouts downloaded.');
+      toast.info('Removed from Study Notes.');
     }
   };
 
-  // Filtered archives
-  const filteredArchives = archives.filter((rec) => {
-    const matchesSearch =
-      !searchQuery.trim() ||
-      rec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rec.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rec.faculty.toLowerCase().includes(searchQuery.toLowerCase());
+  // Download / View Handout PDF
+  const handleOpenHandout = () => {
+    if (liveClass?.handoutPdf?.fileUrl) {
+      setActiveHandoutPdf({
+        url: liveClass.handoutPdf.fileUrl,
+        title: liveClass.handoutPdf.fileName || 'BNSS Class Handout',
+        subtitle: `${liveClass.sessionTopic || 'Bhartiya Nagarik Suraksha Sanhita'} • ${liveClass.facultyName || 'Adv. Sharma'}`,
+        filename: liveClass.handoutPdf.fileName || 'BNSS_Handout.pdf',
+      });
+    } else {
+      toast.success('Opening BNSS Chapter Handout (PDF)');
+    }
+  };
 
-    const matchesSubject =
-      selectedSubject === 'all' || rec.subject.toLowerCase().includes(selectedSubject.toLowerCase());
 
-    return matchesSearch && matchesSubject;
-  });
+  // Carousel navigation
+  const scrollCarousel = (direction: 'left' | 'right') => {
+    if (carouselTrackRef.current) {
+      const scrollAmount = direction === 'left' ? -260 : 260;
+      carouselTrackRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564]">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold mb-2">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-            <span>Interactive Classroom Chamber</span>
-            {(isLoadingStream || isLoadingArchives) && (
-              <Loader2 className="w-3 h-3 ml-1 animate-spin text-[#c19b48]" />
-            )}
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Live Streaming & Lecture Recordings
+    <div className="h-screen h-[100dvh] w-screen overflow-hidden flex flex-col bg-[#F7F3E6] dark:bg-[#040b14] text-slate-900 dark:text-slate-100 transition-colors selection:bg-[#c19b48]/30">
+      {/* 1. TOP CHAMBER NAVIGATION HEADER */}
+      <header className="h-14 sm:h-16 shrink-0 border-b border-slate-200 dark:border-[#143564] bg-white dark:bg-[#061120] px-3 sm:px-5 flex items-center justify-between gap-3 shadow-xs z-30">
+        {/* Left Side: Back Arrow, Chamber Title & Live Badge */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+          <button
+            onClick={handleBack}
+            className="p-1.5 sm:p-2 -ml-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+            title="Return to User Panel"
+            aria-label="Back to Dashboard"
+          >
+            <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5 text-slate-800 dark:text-slate-200" />
+          </button>
+
+          <h1 className="font-serif font-bold text-sm sm:text-base md:text-lg text-slate-900 dark:text-white truncate flex items-center gap-2">
+            <span>Live Classroom Chamber</span>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Bare Act line-by-line decoding with direct 2-way doubt resolution.
-          </p>
+
+          <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] sm:text-[11px] font-bold tracking-wider uppercase flex items-center gap-1.5 shrink-0 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            <span>LIVE</span>
+          </span>
         </div>
 
-        {/* View Switcher */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-[#061120] rounded-xl border border-slate-200 dark:border-[#143564] self-start sm:self-auto">
+        {/* Center / Right Side: Attendees, Tabs Switcher, Fullscreen & Settings */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Attendees Counter Pill */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] text-xs text-slate-700 dark:text-slate-300 font-medium shrink-0">
+            <Users className="w-3.5 h-3.5 text-[#c19b48]" />
+            <span>{liveCount} Aspirants Attending</span>
+          </div>
+
+          {/* Tab Switcher (Desktop & Tablet) */}
+          <div className="hidden md:flex items-center p-1 bg-slate-100 dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] rounded-xl shrink-0">
+            <button
+              onClick={() => setActiveTab('stream')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'stream'
+                  ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
+              }`}
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span>Live Lecture Stream</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('recordings')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'recordings'
+                  ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
+              }`}
+            >
+              <span>Recorded Archive ({archives.length})</span>
+            </button>
+          </div>
+
+          {/* Fullscreen Button */}
           <button
-            onClick={() => setActiveTab('stream')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'stream'
-                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
+            onClick={toggleFullscreen}
+            className="p-2 rounded-xl border border-slate-200 dark:border-[#143564] bg-white dark:bg-[#0a1c36] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#c19b48] transition-colors cursor-pointer hidden sm:flex items-center justify-center"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Chamber'}
           >
-            Live Lecture Stream
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
+
+          {/* Theme Switcher Toggle */}
+          <div className="shrink-0 flex items-center">
+            <ThemeSwitcher />
+          </div>
+
+          {/* Settings Button */}
           <button
-            onClick={() => setActiveTab('recordings')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'recordings'
-                ? 'bg-[#c19b48] text-[#061120] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
+            onClick={() => toast.info('Chamber stream configured: 1080p 60fps • Ultra Low Latency')}
+            className="p-2 rounded-xl border border-slate-200 dark:border-[#143564] bg-white dark:bg-[#0a1c36] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#c19b48] transition-colors cursor-pointer flex items-center justify-center"
+            title="Chamber Settings & Preferences"
           >
-            Recorded Archive ({archives.length})
+            <Settings className="w-4 h-4" />
           </button>
         </div>
+      </header>
+
+      {/* MOBILE SECONDARY TAB STRIP (Row 2 on < 768px matching mobile reference) */}
+      <div className="md:hidden px-3 py-2 border-b border-slate-200 dark:border-[#143564] bg-white dark:bg-[#061120] shrink-0">
+        <SegmentedTabs<'stream' | 'recordings'>
+          value={activeTab}
+          onChange={setActiveTab}
+          size="sm"
+          fullWidthMobile={true}
+          items={[
+            {
+              id: 'stream',
+              label: 'Live Lecture Stream',
+              shortLabel: 'Live Stream',
+              icon: <Play className="w-3 h-3 fill-current" />,
+            },
+            {
+              id: 'recordings',
+              label: `Recorded Archive (${archives.length})`,
+              shortLabel: `Archive (${archives.length})`,
+            },
+          ]}
+        />
       </div>
 
+      {/* 2. MAIN CHAMBER CONTENT AREA */}
       {activeTab === 'stream' ? (
         isLoadingStream && !liveClass ? (
-          <LiveStreamCanvasSkeleton />
+          <div className="flex-1 min-h-0 p-4">
+            <LiveStreamCanvasSkeleton />
+          </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Video Player Canvas */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="relative aspect-video rounded-2xl bg-[#061120] border border-slate-200 dark:border-[#143564] overflow-hidden flex flex-col items-center justify-center p-6 text-center group">
-              <div className="absolute inset-0 bg-gradient-to-t from-[#061120] via-transparent to-[#061120]/40 pointer-events-none" />
+          <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-3 lg:gap-4 p-2.5 sm:p-4 overflow-y-auto md:overflow-hidden">
+          {/* LEFT COLUMN: Main Video Player & Session Info Bar */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between overflow-hidden">
+            {/* Video Player Canvas */}
+            <div className="relative aspect-video w-full rounded-2xl bg-[#061120] border border-slate-200 dark:border-[#143564] overflow-hidden flex flex-col items-center justify-center shadow-lg group select-none">
+              {/* Simulated Judicial Classroom Blackboard & Faculty Presentation */}
+              <div className="absolute inset-0 bg-[#08121e] flex items-center justify-center overflow-hidden">
+                {/* Chalkboard Texture Background */}
+                <div className="absolute inset-0 bg-radial from-[#0a1e35]/80 via-[#061120] to-[#030912] opacity-95" />
 
-              {/* Status Header Badge */}
-              <div className="absolute top-4 left-4 flex items-center gap-2 z-20">
-                <span className="px-2.5 py-1 rounded-full bg-red-600 text-white text-[10px] font-bold tracking-wider uppercase flex items-center gap-1.5 animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" /> LIVE
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-mono border border-white/15">
-                  {liveCount} Aspirants Attending
-                </span>
+                {/* Blackboard Content Layout */}
+                <div className="relative z-10 w-full h-full p-4 sm:p-6 flex flex-col justify-between pointer-events-none select-none">
+                  {/* Chalkboard Title */}
+                  <div className="text-center pt-1 sm:pt-2">
+                    <h2 className="text-sm sm:text-lg md:text-xl font-serif font-bold text-amber-200 tracking-wide border-b border-amber-300/40 inline-block pb-0.5 sm:pb-1">
+                      Bhartiya Nagarik Suraksha Sanhita (BNSS)
+                    </h2>
+                  </div>
+
+                  {/* Chalkboard Sections Grid */}
+                  <div className="grid grid-cols-12 gap-2 sm:gap-4 items-center text-[10px] sm:text-xs">
+                    {/* Left: Object & Key Features */}
+                    <div className="col-span-5 space-y-2 text-slate-200">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-amber-300 flex items-center gap-1">
+                          <span className="w-3.5 h-3.5 rounded-full border border-amber-300 inline-flex items-center justify-center text-[9px]">
+                            1
+                          </span>
+                          Object & Purpose
+                        </span>
+                        <ul className="list-disc list-inside text-slate-300 pl-1 text-[9px] sm:text-[11px] leading-tight space-y-0.5 opacity-90">
+                          <li>Replace CrPC 1973</li>
+                          <li>Speedy trial & Victim centric</li>
+                          <li>Technology integration</li>
+                          <li>Time bound procedures</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-0.5 hidden sm:block">
+                        <span className="font-bold text-amber-300 flex items-center gap-1">
+                          <span className="w-3.5 h-3.5 rounded-full border border-amber-300 inline-flex items-center justify-center text-[9px]">
+                            2
+                          </span>
+                          Key Features
+                        </span>
+                        <ul className="list-disc list-inside text-slate-300 pl-1 text-[9px] sm:text-[11px] leading-tight space-y-0.5 opacity-90">
+                          <li>Summons & warrants modernization</li>
+                          <li>Investigation timelines</li>
+                          <li>Bail provisions revamp</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Middle: Conceptual Shift Flow */}
+                    <div className="col-span-3 text-center flex flex-col items-center justify-center space-y-1 sm:space-y-2">
+                      <span className="text-[9px] sm:text-[11px] text-amber-300 font-semibold border-b border-amber-300/40">
+                        Conceptual Shift
+                      </span>
+                      <div className="p-1 sm:p-2 rounded-lg border border-teal-400/50 bg-teal-950/40 text-teal-300 font-mono text-[8px] sm:text-[10px] leading-tight">
+                        Efficient + Transparent
+                        <br />+ Accountable
+                      </div>
+                      <div className="p-1 rounded-md border border-slate-600 bg-slate-900/60 text-[8px] sm:text-[9px] text-slate-300 font-mono">
+                        CrPC 1973 → BNSS 2023
+                      </div>
+                    </div>
+
+                    {/* Right: Faculty Silhouette / Graphic */}
+                    <div className="col-span-4 flex flex-col items-center justify-center text-right pr-2">
+                      <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full border-2 border-[#c19b48]/40 bg-gradient-to-tr from-[#0a1c36] to-[#143564] flex items-center justify-center shadow-xl relative overflow-hidden">
+                        <User className="w-10 h-10 sm:w-16 sm:h-16 text-[#c19b48] opacity-80" />
+                        <span className="absolute bottom-1 bg-[#c19b48] text-[#061120] text-[8px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full uppercase">
+                          Mentor
+                        </span>
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-serif font-bold text-white mt-1">
+                        Adv. Sharma
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Chalkboard Footer Note */}
+                  <div className="text-[8px] sm:text-[10px] text-slate-400 font-mono text-center pb-8 sm:pb-10">
+                    Live Broadcast • Judicial Services Preliminary & Mains Chamber
+                  </div>
+                </div>
               </div>
 
-              {/* Video Stream / Play Simulation */}
-              <div className="relative z-10 space-y-3 max-w-md">
-                <div
-                  onClick={handleJoinVideoSession}
-                  className="w-16 h-16 rounded-full bg-[#c19b48]/90 text-[#061120] flex items-center justify-center mx-auto shadow-2xl hover:scale-105 transition-transform cursor-pointer"
-                  title="Connect to Zoom Video SDK Stream"
-                >
-                  <Play className="w-7 h-7 fill-[#061120] ml-1" />
-                </div>
-                <h3 className="text-lg font-serif font-bold text-white">
-                  {liveClass?.title || 'CPC Section 9 to 14: Res Sub Judice & Jurisdiction'}
-                </h3>
-                <p className="text-xs text-slate-300">
-                  Lecturer: {liveClass?.facultyName || 'Adv. Rajinder Sir'} (
-                  {liveClass?.facultyTitle || 'Founding Director & Judicial Mentor'})
-                </p>
-
+              {/* OVERLAY: Top Video Badges */}
+              <div className="absolute top-2.5 sm:top-3.5 left-2.5 sm:left-3.5 flex items-center gap-2 z-20">
+                <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[9px] sm:text-[10px] font-bold tracking-wider uppercase flex items-center gap-1 animate-pulse shadow-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white" /> LIVE
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-mono border border-white/15">
+                  01:24:36
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-mono border border-white/15">
+                  📶 {liveCount} Aspirants Attending
+                </span>
                 {isPlayingSession && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-semibold animate-in fade-in">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Zoom Video SDK Stream Connected • 1080p 60fps</span>
-                  </div>
+                  <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold border border-emerald-500/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Chamber Stream Connected</span>
+                  </span>
                 )}
               </div>
 
-              {/* Bottom Controls Bar */}
-              <div className="absolute bottom-2 sm:bottom-4 inset-x-2 sm:inset-x-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-300 bg-black/65 backdrop-blur-md p-2 sm:p-2.5 rounded-xl border border-white/10 z-20">
-                <span className="flex items-center gap-1.5 truncate max-w-full">
-                  <Clock className="w-3.5 h-3.5 text-[#c19b48] shrink-0" />
-                  <span className="truncate">
-                    Session Started:{' '}
-                    {liveClass?.startTime === '17:00'
-                      ? '5:00 PM (Ends 7:00 PM)'
-                      : `${liveClass?.startTime || '5:00 PM'} (Ends ${liveClass?.endTime || '7:00 PM'})`}
+              {/* OVERLAY: Center Play/Join Button */}
+              {!isPlaying && (
+                <div
+                  onClick={() => {
+                    setIsPlaying(true);
+                    handleJoinVideoSession();
+                  }}
+                  className="relative z-20 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#c19b48] text-[#061120] flex items-center justify-center shadow-2xl hover:scale-105 transition-transform cursor-pointer"
+                  title="Connect / Resume Chamber Stream"
+                >
+                  <Play className="w-7 h-7 fill-[#061120] ml-1" />
+                </div>
+              )}
+
+              {/* OVERLAY: Bottom Custom Video Controls Bar */}
+              <div className="absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-black/75 backdrop-blur-md border border-white/10 text-white text-xs z-20">
+                {/* Left Controls: Play/Pause, Live Indicator & Volume */}
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <button
+                    onClick={() => setIsPlaying((p) => !p)}
+                    className="p-1 hover:text-[#c19b48] transition-colors cursor-pointer"
+                    title={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                  </button>
+
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-400">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span>LIVE</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pl-1 sm:pl-2">
+                    <button
+                      onClick={() => setIsMuted((m) => !m)}
+                      className="p-1 hover:text-[#c19b48] transition-colors cursor-pointer"
+                      title={isMuted ? 'Unmute' : 'Mute'}
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="w-4 h-4 text-red-400" />
+                      ) : (
+                        <Volume2 className="w-4 h-4" />
+                      )}
+                    </button>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={isMuted ? 0 : volume}
+                      onChange={(e) => {
+                        setVolume(Number(e.target.value));
+                        if (isMuted) setIsMuted(false);
+                      }}
+                      className="w-14 sm:w-20 h-1 accent-[#c19b48] bg-white/30 rounded-lg cursor-pointer hidden xs:inline-block"
+                      title={`Volume ${volume}%`}
+                    />
+                  </div>
+                </div>
+
+                {/* Right Controls: CC, Speed, PiP, Fullscreen */}
+                <div className="flex items-center gap-1.5 sm:gap-2.5 relative">
+                  {/* Closed Captions */}
+                  <button
+                    onClick={() => {
+                      setIsCcActive((c) => !c);
+                      toast.info(isCcActive ? 'Subtitles turned off' : 'Subtitles turned on (English / Hindi)');
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                      isCcActive
+                        ? 'bg-[#c19b48] text-[#061120] border-[#c19b48]'
+                        : 'border-white/30 text-white hover:border-white'
+                    }`}
+                    title="Closed Captions (CC)"
+                  >
+                    CC
+                  </button>
+
+                  {/* Playback Speed */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSpeedMenu((s) => !s)}
+                      className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white hover:text-[#c19b48] transition-colors cursor-pointer"
+                      title="Playback Speed"
+                    >
+                      {playbackSpeed}
+                    </button>
+
+                    {showSpeedMenu && (
+                      <div className="absolute bottom-8 right-0 bg-[#061120] border border-white/20 rounded-xl p-1 shadow-2xl flex flex-col gap-0.5 text-xs z-30 min-w-16">
+                        {['0.75x', '1x', '1.25x', '1.5x', '2x'].map((spd) => (
+                          <button
+                            key={spd}
+                            onClick={() => {
+                              setPlaybackSpeed(spd);
+                              setShowSpeedMenu(false);
+                            }}
+                            className={`px-2 py-1 text-left rounded-lg text-[11px] cursor-pointer ${
+                              playbackSpeed === spd
+                                ? 'bg-[#c19b48] text-[#061120] font-bold'
+                                : 'text-slate-300 hover:bg-white/10'
+                            }`}
+                          >
+                            {spd}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fullscreen Video Toggle */}
+                  <button
+                    onClick={toggleFullscreen}
+                    className="p-1 hover:text-[#c19b48] transition-colors cursor-pointer"
+                    title="Fullscreen"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Session Information & Action Controls Bar */}
+            <div className="mt-2.5 sm:mt-3 p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs shrink-0">
+              {/* Session Time & Faculty Mentorship Details */}
+              <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-700 dark:text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#c19b48] shrink-0" />
+                  <span>
+                    Session Started: <strong className="text-slate-900 dark:text-white">7:00 PM</strong> (Ends 8:30 PM)
                   </span>
-                </span>
+                </div>
+
+                <div className="flex items-center gap-2 border-l border-slate-200 dark:border-[#143564] pl-3 sm:pl-6">
+                  <User className="w-4 h-4 text-[#c19b48] shrink-0" />
+                  <div>
+                    <span className="font-bold text-slate-900 dark:text-white block">
+                      {liveClass?.facultyName || 'Adv. Sharma'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      {liveClass?.facultyTitle || 'Criminal Law Specialist'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons: Handout (PDF) & Add to Notes */}
+              <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto">
                 <button
-                  onClick={handleDownloadHandout}
-                  className="inline-flex items-center gap-1 text-[11px] text-[#e8cf8d] hover:underline font-semibold cursor-pointer shrink-0 ml-auto sm:ml-0"
+                  onClick={handleOpenHandout}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d4ad53] text-[#061120] text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Class Handout (PDF)</span>
                 </button>
-              </div>
-            </div>
 
-            {/* Lecture Syllabus Outline: Today's Learning Focus */}
-            <div className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#c19b48]" />
-                  <span>Today's Learning Focus</span>
-                </h3>
                 <button
-                  onClick={handleToggleAlert}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    isAlertSubscribed
-                      ? 'bg-amber-100 dark:bg-[#c19b48]/20 text-[#c19b48]'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  onClick={handleAddToNotes}
+                  className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    isBookmarked
+                      ? 'bg-amber-100 dark:bg-[#c19b48]/20 border-[#c19b48] text-[#c19b48]'
+                      : 'border-slate-200 dark:border-[#143564] text-slate-700 dark:text-slate-200 hover:border-[#c19b48]'
                   }`}
                 >
-                  <Bell className="w-3.5 h-3.5" />
-                  <span>{isAlertSubscribed ? 'Alert Active' : 'Set Class Reminder'}</span>
+                  <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current text-[#c19b48]' : ''}`} />
+                  <span>{isBookmarked ? 'Saved to Notes' : 'Add to Notes'}</span>
                 </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                {liveClass?.learningFocus && liveClass.learningFocus.length > 0 ? (
-                  liveClass.learningFocus.map((focus, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]"
-                    >
-                      <span className="font-semibold text-slate-900 dark:text-white block mb-0.5">
-                        {focus.title}
-                      </span>
-                      <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
-                        {focus.description}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
-                      <span className="font-semibold text-slate-900 dark:text-white block mb-0.5">
-                        Section 9 Analysis
-                      </span>
-                      <p className="text-slate-500 dark:text-slate-400 text-[11px]">
-                        Suits of civil nature & express/implied bars.
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
-                      <span className="font-semibold text-slate-900 dark:text-white block mb-0.5">
-                        Section 10 & 11
-                      </span>
-                      <p className="text-slate-500 dark:text-slate-400 text-[11px]">
-                        Res Sub Judice vs Res Judicata distinction.
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
-                      <span className="font-semibold text-slate-900 dark:text-white block mb-0.5">
-                        7 Case Precedents
-                      </span>
-                      <p className="text-slate-500 dark:text-slate-400 text-[11px]">
-                        Supreme Court ratio on stay of civil proceedings.
-                      </p>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           </div>
 
-          {/* Right Column: Live Classroom Chat */}
-          <div className="flex flex-col h-[520px] rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] overflow-hidden">
-            <div className="p-4 border-b border-slate-200 dark:border-[#143564] flex items-center justify-between">
+          {/* RIGHT COLUMN: Live Classroom Chat Pane */}
+          <div className="w-full md:w-80 lg:w-96 xl:w-[420px] shrink-0 h-[480px] md:h-full flex flex-col rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] overflow-hidden shadow-xs">
+            {/* Chat Pane Header */}
+            <div className="shrink-0 p-3.5 sm:p-4 border-b border-slate-200 dark:border-[#143564] flex items-center justify-between bg-slate-50/80 dark:bg-[#061120]/80">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-[#c19b48]" />
                 <h3 className="text-xs font-serif font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                   Live Classroom Chat
                 </h3>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Faculty Online
               </span>
             </div>
 
-            {/* Message Feed */}
-            <div className="flex-1 p-3 overflow-y-auto space-y-3">
-              {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={`p-2.5 rounded-xl text-xs space-y-1 ${
-                    m.isFacultyMessage || m.role === 'faculty'
-                      ? 'bg-amber-50/80 dark:bg-[#143564]/50 border border-amber-200 dark:border-[#c19b48]/30'
-                      : 'bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span
-                      className={`font-semibold ${
-                        m.isFacultyMessage || m.role === 'faculty'
-                          ? 'text-[#c19b48] dark:text-[#e8cf8d]'
-                          : 'text-slate-700 dark:text-slate-300'
+            {/* Chat Message Stream */}
+            <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-3">
+              {messages.map((m) => {
+                const isFaculty = m.isFacultyMessage || m.role === 'faculty';
+                const initials = m.sender
+                  .split(' ')
+                  .map((w) => w[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase();
+
+                return (
+                  <div key={m.id} className="flex gap-2.5 items-start text-xs">
+                    {/* Avatar Circle */}
+                    <div
+                      className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center font-bold text-[10px] shadow-xs ${
+                        isFaculty
+                          ? 'bg-[#c19b48] text-[#061120]'
+                          : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
                       }`}
                     >
-                      {m.sender} {(m.isFacultyMessage || m.role === 'faculty') && '⭐'}
-                    </span>
-                    <span className="text-slate-400">{m.time}</span>
+                      {initials}
+                    </div>
+
+                    {/* Message Bubble Container */}
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1 truncate">
+                          {m.sender}
+                          {isFaculty && (
+                            <span className="text-[#c19b48] font-bold text-[9px] bg-[#c19b48]/15 px-1 rounded">
+                              Faculty
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 pl-1">{m.time}</span>
+                      </div>
+
+                      {/* Bubble Text */}
+                      <div
+                        className={`p-2.5 rounded-xl text-[11px] leading-relaxed relative ${
+                          isFaculty
+                            ? 'bg-amber-50/90 dark:bg-[#c19b48]/15 border border-amber-200 dark:border-[#c19b48]/40 text-slate-900 dark:text-slate-100 font-medium'
+                            : 'bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-slate-800 dark:text-slate-200'
+                        }`}
+                      >
+                        {isFaculty && (
+                          <Pin className="w-3 h-3 text-[#c19b48] absolute top-2 right-2 fill-[#c19b48]/30" />
+                        )}
+                        <p className={isFaculty ? 'pr-4' : ''}>{m.text}</p>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-slate-800 dark:text-slate-200 text-[11px] leading-relaxed">
-                    {m.text}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
               <div ref={chatBottomRef} />
             </div>
 
-            {/* Chat Input Bar */}
+            {/* Pinned Bottom Chat Composer */}
             <form
               onSubmit={handleSendMessage}
-              className="p-3 border-t border-slate-200 dark:border-[#143564] flex items-center gap-2 bg-slate-50/70 dark:bg-[#061120]"
+              className="shrink-0 p-2.5 sm:p-3 border-t border-slate-200 dark:border-[#143564] bg-slate-50/90 dark:bg-[#061120]/90 flex items-center gap-2"
             >
               <input
                 type="text"
                 value={newMsg}
                 onChange={(e) => setNewMsg(e.target.value)}
                 placeholder="Ask Rajinder Sir a doubt..."
-                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48]"
+                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48] transition-colors"
               />
+
+              <button
+                type="button"
+                onClick={() => toast.info('You can upload judicial handwritten doubt slips or case references.')}
+                className="p-2 rounded-xl border border-slate-200 dark:border-[#143564] bg-white dark:bg-[#0a1c36] text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                title="Attach Document or Image"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+
               <button
                 type="submit"
-                className="p-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] transition-colors cursor-pointer"
-                title="Send Doubt"
+                className="p-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] transition-colors cursor-pointer shadow-xs"
+                title="Send Doubt to Live Stream Queue"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -626,44 +1036,20 @@ export const LiveClassesPage: React.FC = () => {
         </div>
         )
       ) : (
-        /* Recorded Archive Tab */
-        <div className="space-y-6">
-          {/* Search & Filter Header */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564]">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search lectures by title, topic, or faculty..."
-                className="w-full pl-9 pr-4 py-2 sm:py-1.5 rounded-lg bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48]"
-              />
-            </div>
-
-            <div className="w-full sm:w-56 shrink-0">
-              <CustomSelect
-                options={[
-                  { value: 'all', label: 'All Law Subjects' },
-                  { value: 'Code of Civil Procedure (CPC)', label: 'CPC' },
-                  { value: 'Bhartiya Nyaya Sanhita (BNS)', label: 'BNS / Criminal Law' },
-                  { value: 'Indian Evidence Act (BSA)', label: 'Evidence / BSA' },
-                  { value: 'Constitutional Law', label: 'Constitutional Law' },
-                ]}
-                value={selectedSubject}
-                onChange={(val) => setSelectedSubject(val)}
-                placeholder="All Law Subjects"
-                sheetTitle="Filter by Law Subject"
-              />
-            </div>
-          </div>
-
+        /* 3. RECORDED ARCHIVE LIBRARY VIEW */
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5">
           {/* Grid of Lecture Archive Cards */}
           {isLoadingArchives && archives.length === 0 ? (
             <RecordingCardSkeleton count={6} />
+          ) : archives.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-2">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                No archived lectures available at this time.
+              </p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredArchives.map((rec) => (
+              {archives.map((rec) => (
                 <div
                   key={rec._id || rec.id}
                   className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col justify-between space-y-4 shadow-xs hover:border-[#c19b48]/60 transition-all group"
@@ -693,6 +1079,22 @@ export const LiveClassesPage: React.FC = () => {
                       {rec.notesFile?.fileSize || rec.notesSize || '3.5 MB PDF'}
                     </span>
                     <div className="flex items-center gap-2">
+                      {rec.notesFile?.fileUrl && (
+                        <button
+                          onClick={() =>
+                            setActiveHandoutPdf({
+                              url: rec.notesFile!.fileUrl,
+                              title: rec.notesFile?.fileName || `${rec.title} - Study Notes`,
+                              subtitle: `${rec.subject} • ${rec.faculty}`,
+                              filename: rec.notesFile?.fileName || `${rec.title}_Notes.pdf`,
+                            })
+                          }
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#c19b48] hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Read Study Notes in PDF Viewer"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           if (rec.notesFile?.fileUrl) window.open(rec.notesFile.fileUrl, '_blank');
@@ -705,9 +1107,9 @@ export const LiveClassesPage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => handleOpenArchive(rec)}
-                        className="px-3 py-1.5 rounded-lg bg-[#0a1c36] dark:bg-[#143564] hover:bg-[#143564] text-white font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-lg bg-[#0a1c36] dark:bg-[#143564] hover:bg-[#143564] text-white font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
                       >
-                        <Play className="w-3 h-3" />
+                        <Play className="w-3 h-3 fill-current" />
                         <span>Watch</span>
                       </button>
                     </div>
@@ -719,7 +1121,83 @@ export const LiveClassesPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: INTERACTIVE RECORDED LECTURE PLAYER */}
+      {/* 4. BOTTOM CAROUSEL: "OTHER LIVE SESSIONS" */}
+      <footer className="shrink-0 px-3 sm:px-4 py-2 border-t border-slate-200 dark:border-[#143564] bg-white dark:bg-[#061120] backdrop-blur-md flex items-center gap-2 sm:gap-3 z-20">
+        {/* Label with Live Radio Pulse */}
+        <div className="flex items-center gap-2 shrink-0 pr-2 border-r border-slate-200 dark:border-[#143564] text-xs font-bold text-slate-800 dark:text-slate-200">
+          <Radio className="w-4 h-4 text-red-500 animate-pulse shrink-0" />
+          <span className="hidden sm:inline">Other Live Sessions</span>
+        </div>
+
+        {/* Carousel Navigation Arrow (Left) */}
+        <button
+          onClick={() => scrollCarousel('left')}
+          className="p-1.5 rounded-lg border border-slate-200 dark:border-[#143564] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+          title="Previous sessions"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Horizontal Track of Live & Upcoming Sessions */}
+        <div
+          ref={carouselTrackRef}
+          className="flex-1 min-w-0 flex items-center gap-2.5 overflow-x-auto scrollbar-none snap-x py-0.5"
+        >
+          {OTHER_SESSIONS.map((ses) => (
+            <div
+              key={ses.id}
+              onClick={() => {
+                if (ses.isLive) {
+                  toast.success(`Active stream switched to ${ses.title}`);
+                } else {
+                  toast.info(`Reminder registered for ${ses.title} (${ses.subtitle})`);
+                }
+              }}
+              className={`shrink-0 snap-start px-3 py-1.5 rounded-xl border text-xs flex items-center gap-2.5 transition-all cursor-pointer ${
+                ses.isLive
+                  ? 'bg-amber-50/80 dark:bg-[#0a1c36] border-[#c19b48] shadow-xs'
+                  : 'bg-slate-50 dark:bg-[#061120] border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/50'
+              }`}
+            >
+              <div
+                className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                  ses.isLive
+                    ? 'bg-[#c19b48] text-[#061120]'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                }`}
+              >
+                {ses.isLive ? <Play className="w-3 h-3 fill-current ml-0.5" /> : <Clock className="w-3 h-3" />}
+              </div>
+
+              <div className="truncate">
+                <span className="font-bold text-slate-900 dark:text-white block text-[11px] truncate">
+                  {ses.title}
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                  {ses.subtitle}
+                </span>
+              </div>
+
+              {ses.isLive && (
+                <span className="px-1.5 py-0.2 rounded-full bg-red-600 text-white font-bold text-[9px] uppercase tracking-wider shrink-0 animate-pulse">
+                  LIVE
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Carousel Navigation Arrow (Right) */}
+        <button
+          onClick={() => scrollCarousel('right')}
+          className="p-1.5 rounded-lg border border-slate-200 dark:border-[#143564] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+          title="Next sessions"
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </footer>
+
+      {/* 5. MODAL: INTERACTIVE RECORDED LECTURE PLAYER */}
       {selectedArchive && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-4xl rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
@@ -781,96 +1259,75 @@ export const LiveClassesPage: React.FC = () => {
                     onClick={() => handleReactArchive('dislike')}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
                       userReaction === 'dislike'
-                        ? 'bg-rose-600 text-white border-rose-600'
+                        ? 'bg-rose-500 text-white border-rose-500'
                         : 'border-slate-200 dark:border-[#143564] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#143564]'
                     }`}
                   >
                     <ThumbsDown className="w-3.5 h-3.5" />
                     <span>{selectedArchive.dislikesCount}</span>
                   </button>
-                  {selectedArchive.notesFile && (
-                    <button
-                      onClick={() => window.open(selectedArchive.notesFile?.fileUrl, '_blank')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#c19b48]/15 text-[#c19b48] border border-[#c19b48]/30 text-xs font-bold hover:bg-[#c19b48]/25 transition-colors cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>{selectedArchive.notesFile.fileName}</span>
-                    </button>
-                  )}
                 </div>
               </div>
 
-              {/* Syllabus Chapters */}
-              {selectedArchive.chapters && selectedArchive.chapters.length > 0 && (
-                <div className="space-y-2">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px]">
-                    Syllabus Chapters & Timestamps
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {selectedArchive.chapters.map((ch, idx) => (
-                      <div
-                        key={idx}
-                        className="p-2 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] flex items-center justify-between"
-                      >
-                        <span className="text-[11px] text-slate-700 dark:text-slate-300 font-medium truncate pr-2">
-                          {ch.title}
-                        </span>
-                        <span className="text-[10px] font-mono text-[#c19b48]">
-                          {Math.floor(ch.timestampSeconds / 60)}:00
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Threaded Discussion Section */}
-              <div className="space-y-3 pt-2">
-                <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px]">
-                  Judicial Discussion & Peer Queries ({archiveComments.length})
-                </span>
+              {/* Comments Feed */}
+              <div className="space-y-3">
+                <h5 className="font-serif font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Discussion Chamber ({archiveComments.length})
+                </h5>
 
                 <form onSubmit={handlePostComment} className="flex gap-2">
                   <input
                     type="text"
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
-                    placeholder="Contribute a judicial query or analysis on this recording..."
-                    className="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#c19b48]"
+                    placeholder="Contribute a query or observation on this archive..."
+                    className="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#c19b48]"
                   />
                   <button
                     type="submit"
                     disabled={isSubmittingComment}
-                    className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs cursor-pointer flex items-center gap-1"
+                    className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {isSubmittingComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    <span>Post</span>
+                    {isSubmittingComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Post'}
                   </button>
                 </form>
 
-                <div className="space-y-2.5 max-h-48 overflow-y-auto">
-                  {archiveComments.map((comment) => (
-                    <div
-                      key={comment._id}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] space-y-1"
-                    >
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          {comment.userName}{' '}
-                          {comment.userRole === 'faculty' && <span className="text-[#c19b48]">⭐ Faculty</span>}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(comment.createdAt).toLocaleDateString()}
-                        </span>
+                <div className="space-y-2 pt-2 max-h-48 overflow-y-auto">
+                  {archiveComments.length === 0 ? (
+                    <p className="text-slate-400 text-center py-4">No comments posted yet.</p>
+                  ) : (
+                    archiveComments.map((c) => (
+                      <div
+                        key={c._id}
+                        className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-100 dark:border-[#143564] space-y-1"
+                      >
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {c.userName} ({c.userRole})
+                          </span>
+                          <span className="text-slate-400">{c.createdAt}</span>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-300 text-xs">{c.text}</p>
                       </div>
-                      <p className="text-slate-700 dark:text-slate-300 text-xs">{comment.text}</p>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* 6. UNIVERSAL PDF VIEWER MODAL */}
+      {activeHandoutPdf && (
+        <UniversalPdfModal
+          isOpen={true}
+          onClose={() => setActiveHandoutPdf(null)}
+          url={activeHandoutPdf.url}
+          title={activeHandoutPdf.title}
+          subtitle={activeHandoutPdf.subtitle}
+          downloadFileName={activeHandoutPdf.filename}
+        />
       )}
     </div>
   );

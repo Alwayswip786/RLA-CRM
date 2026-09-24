@@ -1,53 +1,36 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Scale,
-  Sparkles,
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
   AlertCircle,
   FileQuestion,
+  RotateCcw,
 } from 'lucide-react';
 import type {
   JudgementDigest,
   JudgementFilterParams,
 } from '../../types/judgement.types';
-import {
-  fetchPublishedJudgements,
-  fetchJudgementFilterMeta,
-  fetchFeaturedJudgement,
-} from '../../services/judgement.service';
-import { JudgementFilterBar } from '../../components/judgement/JudgementFilterBar';
+import { fetchPublishedJudgements } from '../../services/judgement.service';
 import { JudgementCard } from '../../components/judgement/JudgementCard';
 import { JudgementViewerModal } from '../../components/judgement/JudgementViewerModal';
 import { JudgementCardSkeleton } from '../../components/ui/skeleton';
 
 export const JudgmentsPage: React.FC = () => {
   const [judgements, setJudgements] = useState<JudgementDigest[]>([]);
-  const [featured, setFeatured] = useState<JudgementDigest | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Pagination state
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-
-  // Distinct filter options
-  const [availableCourts, setAvailableCourts] = useState<string[]>([]);
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
-  const [availableImportances, setAvailableImportances] = useState<string[]>([]);
+  const [, setTotalPages] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [nextPageError, setNextPageError] = useState<string | null>(null);
 
   // Active filters
-  const [filters, setFilters] = useState<JudgementFilterParams>({
+  const [filters] = useState<JudgementFilterParams>({
     court: 'all',
     year: 'all',
     subject: 'all',
     importance: 'all',
     search: '',
     sort: 'date_desc',
-    page: 1,
     limit: 6,
   });
 
@@ -55,42 +38,39 @@ export const JudgmentsPage: React.FC = () => {
   const [selectedJudgement, setSelectedJudgement] = useState<JudgementDigest | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
 
-  // Load filter metadata on initial mount
+  // Sentinel and fetch locks
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const isFetchingRef = useRef(false);
+  const hasNextPageRef = useRef(false);
+  const pageRef = useRef(1);
+
+  // Keep refs in sync for observer callback
   useEffect(() => {
-    fetchJudgementFilterMeta()
-      .then((res) => {
-        if (res.success && res.meta) {
-          setAvailableCourts(res.meta.courts || []);
-          setAvailableYears(res.meta.years || []);
-          setAvailableSubjects(res.meta.subjects || []);
-          setAvailableImportances(res.meta.importances || []);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load filter metadata:', err);
-      });
+    hasNextPageRef.current = hasNextPage;
+  }, [hasNextPage]);
 
-    // Load featured judgement
-    fetchFeaturedJudgement()
-      .then((res) => {
-        if (res.success && res.featured) {
-          setFeatured(res.featured);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
-  // Fetch judgements whenever filters change
-  const loadJudgements = useCallback(async () => {
+  // Initial load
+  const loadInitialJudgements = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetchPublishedJudgements(filters);
+      setNextPageError(null);
+      setPage(1);
+
+      const res = await fetchPublishedJudgements({
+        ...filters,
+        page: 1,
+      });
+
       if (res.success) {
         setJudgements(res.judgements);
-        setTotalCount(res.total);
         setTotalPages(res.totalPages);
-        setPage(res.page);
+        const hasNext = res.hasNextPage ?? (1 < res.totalPages);
+        setHasNextPage(hasNext);
       }
     } catch (err: any) {
       console.error('Error fetching judgements:', err);
@@ -101,29 +81,67 @@ export const JudgmentsPage: React.FC = () => {
   }, [filters]);
 
   useEffect(() => {
-    loadJudgements();
-  }, [loadJudgements]);
+    loadInitialJudgements();
+  }, [loadInitialJudgements]);
 
-  const handleFilterChange = (newFilters: Partial<JudgementFilterParams>) => {
-    setFilters((prev) => ({
-      ...prev,
-      ...newFilters,
-      page: newFilters.page !== undefined ? newFilters.page : 1,
-    }));
-  };
+  // Fetch next page batch and append deduplicated items
+  const fetchNextPage = useCallback(async () => {
+    if (isFetchingRef.current || !hasNextPageRef.current) return;
 
-  const handleResetFilters = () => {
-    setFilters({
-      court: 'all',
-      year: 'all',
-      subject: 'all',
-      importance: 'all',
-      search: '',
-      sort: 'date_desc',
-      page: 1,
-      limit: 6,
-    });
-  };
+    try {
+      isFetchingRef.current = true;
+      setIsFetchingNextPage(true);
+      setNextPageError(null);
+
+      const nextPage = pageRef.current + 1;
+      const res = await fetchPublishedJudgements({
+        ...filters,
+        page: nextPage,
+      });
+
+      if (res.success) {
+        setJudgements((prev) => {
+          const existingIds = new Set(prev.map((j) => j._id));
+          const uniqueIncoming = res.judgements.filter((j) => !existingIds.has(j._id));
+          return [...prev, ...uniqueIncoming];
+        });
+        setPage(nextPage);
+        setTotalPages(res.totalPages);
+        const hasNext = res.hasNextPage ?? (nextPage < res.totalPages);
+        setHasNextPage(hasNext);
+      }
+    } catch (err: any) {
+      console.error('Failed to load next page of judgements:', err);
+      setNextPageError(
+        err?.response?.data?.message || 'Could not load additional judgements. Tap to retry.'
+      );
+    } finally {
+      isFetchingRef.current = false;
+      setIsFetchingNextPage(false);
+    }
+  }, [filters]);
+
+  // IntersectionObserver Sentinel (rootMargin: '280px 0px' for proactive pre-fetch)
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !hasNextPage || isFetchingNextPage || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries.some((entry) => entry.isIntersecting) &&
+          !isFetchingRef.current &&
+          hasNextPageRef.current
+        ) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: '280px 0px' }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, loading]);
 
   const handleOpenPreview = (j: JudgementDigest) => {
     setSelectedJudgement(j);
@@ -141,175 +159,76 @@ export const JudgmentsPage: React.FC = () => {
         item._id === judgementId ? { ...item, downloadCount: item.downloadCount + 1 } : item
       )
     );
-    if (featured && featured._id === judgementId) {
-      setFeatured({ ...featured, downloadCount: featured.downloadCount + 1 });
-    }
   };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564]">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2 border border-amber-200/60 dark:border-[#c19b48]/30">
-            <Scale className="w-3.5 h-3.5" />
-            <span>Apex Court & High Courts Repository</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Landmark Judgement Digest
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Authoritative case law repository with 3-Point Ratio Decidendi for Mains answers, Coram,
-            overruled precedents, and in-app range-streamed PDF reading.
-          </p>
-        </div>
-      </div>
-
-      {/* Featured Landmark Case of the Day (Spotlight Card) */}
-      {featured && (
-        <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent dark:from-[#c19b48]/15 dark:via-[#0a1c36] dark:to-[#061120] border border-amber-200 dark:border-[#c19b48]/40 space-y-3 relative overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#c19b48] text-[#061120] text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Precedent of the Day</span>
-            </div>
-            <span className="font-mono text-xs font-bold text-[#c19b48] dark:text-[#e8cf8d]">
-              {featured.citation}
-            </span>
-          </div>
-
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1.5 max-w-3xl">
-              <h2 className="text-lg sm:text-xl font-serif font-bold text-slate-900 dark:text-white">
-                {featured.title}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
-                {featured.summary}
-              </p>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
-                <span>
-                  <strong>Bench:</strong> {featured.bench}
-                </span>
-                <span>•</span>
-                <span>{featured.subject}</span>
-                <span>•</span>
-                <span>{featured.court}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => handleOpenPreview(featured)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d4ae58] text-[#061120] font-bold text-xs sm:text-sm transition-colors shadow-md cursor-pointer shrink-0"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Read Full Digest</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Toolbar */}
-      <JudgementFilterBar
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        onReset={handleResetFilters}
-        availableCourts={availableCourts}
-        availableYears={availableYears}
-        availableSubjects={availableSubjects}
-        availableImportances={availableImportances}
-        totalCount={totalCount}
-      />
-
       {/* Loading Skeleton State */}
-      {loading && <JudgementCardSkeleton count={4} />}
-
-      {/* Error Alert */}
-      {!loading && error && (
+      {loading ? (
+        <JudgementCardSkeleton count={4} />
+      ) : error ? (
+        // Error Alert
         <div className="p-6 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-center space-y-3">
           <AlertCircle className="w-8 h-8 text-red-500 mx-auto" />
           <h3 className="text-sm font-bold text-red-800 dark:text-red-300">{error}</h3>
           <button
-            onClick={() => loadJudgements()}
-            className="px-4 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700"
+            onClick={loadInitialJudgements}
+            className="px-4 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 cursor-pointer"
           >
             Retry
           </button>
         </div>
-      )}
-
-      {/* Empty Search / Filter Results */}
-      {!loading && !error && judgements.length === 0 && (
+      ) : judgements.length === 0 ? (
+        // Empty State
         <div className="p-12 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] text-center space-y-3">
           <FileQuestion className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
           <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
             No Landmark Judgements Found
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            We couldn't find any precedents matching your active query or selected filters. Try
-            adjusting search keywords or resetting court and subject filters.
+            There are currently no official landmark judgements published in the repository.
           </p>
-          <button
-            onClick={handleResetFilters}
-            className="px-4 py-2 rounded-xl bg-[#c19b48] text-[#061120] text-xs font-bold hover:bg-[#d4ae58] transition-colors inline-block mt-2 cursor-pointer"
-          >
-            Reset All Filters
-          </button>
         </div>
-      )}
-
-      {/* Precedents Grid */}
-      {!loading && !error && judgements.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {judgements.map((j) => (
-            <JudgementCard
-              key={j._id}
-              judgement={j}
-              onPreview={handleOpenPreview}
-              onDownloadComplete={handleDownloadSuccess}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Pagination Controls */}
-      {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564]">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Page <strong className="text-slate-900 dark:text-white">{page}</strong> of{' '}
-            <strong className="text-slate-900 dark:text-white">{totalPages}</strong>
-          </span>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleFilterChange({ page: page - 1 })}
-              disabled={page <= 1}
-              className="p-2 rounded-lg bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564] disabled:opacity-40 hover:bg-[#c19b48] hover:text-[#061120] transition-colors cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-
-            {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((num) => (
-              <button
-                key={num}
-                onClick={() => handleFilterChange({ page: num })}
-                className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                  num === page
-                    ? 'bg-[#c19b48] text-[#061120]'
-                    : 'bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
-                }`}
-              >
-                {num}
-              </button>
+      ) : (
+        // Precedents Grid + Infinite Scroll Batches
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {judgements.map((j) => (
+              <JudgementCard
+                key={j._id}
+                judgement={j}
+                onPreview={handleOpenPreview}
+                onDownloadComplete={handleDownloadSuccess}
+              />
             ))}
-
-            <button
-              onClick={() => handleFilterChange({ page: page + 1 })}
-              disabled={page >= totalPages}
-              className="p-2 rounded-lg bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564] disabled:opacity-40 hover:bg-[#c19b48] hover:text-[#061120] transition-colors cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
           </div>
+
+          {/* Next Batch Skeletons (Inline without resetting or jumping scroll) */}
+          {isFetchingNextPage && (
+            <div className="pt-2">
+              <JudgementCardSkeleton count={2} />
+            </div>
+          )}
+
+          {/* Next Page Failure - Inline Retry Pill */}
+          {nextPageError && (
+            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-between gap-4 shadow-xs">
+              <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+                {nextPageError}
+              </p>
+              <button
+                type="button"
+                onClick={() => void fetchNextPage()}
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Retry</span>
+              </button>
+            </div>
+          )}
+
+          {/* Invisible Sentinel Element for IntersectionObserver */}
+          <div ref={loadMoreRef} className="h-6 w-full pointer-events-none" aria-hidden="true" />
         </div>
       )}
 

@@ -11,6 +11,7 @@ import type { DoubtQuery } from '../../types/doubt.types';
 import { DoubtTicketSkeleton } from '../../components/ui/skeleton';
 import { DoubtQueryCard } from '../../components/doubts/DoubtQueryCard';
 import { SubmitDoubtModal } from '../../components/doubts/SubmitDoubtModal';
+import { SegmentedTabs } from '../../components/ui/tabs';
 
 export const DoubtsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -98,26 +99,26 @@ export const DoubtsPage: React.FC = () => {
       {/* 1. Dual Tab Controls & Actions */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Tab Switcher Buttons */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] w-full sm:w-auto">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer bg-white dark:bg-[#0a1c36] text-[#c19b48] dark:text-[#e8cf8d] shadow-xs border border-slate-200/80 dark:border-[#c19b48]/30"
-          >
-            <HelpCircle className="w-3.5 h-3.5 shrink-0" />
-            <span className="sm:hidden">Legal Queries</span>
-            <span className="hidden sm:inline">Formal Legal Queries</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard/chamber')}
-            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-          >
-            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-            <span className="sm:hidden">Live Chamber</span>
-            <span className="hidden sm:inline">Live Faculty Chamber</span>
-          </button>
-        </div>
+        <SegmentedTabs<'queries' | 'chamber'>
+          value="queries"
+          onChange={(tab) => {
+            if (tab === 'chamber') navigate('/dashboard/chamber');
+          }}
+          items={[
+            {
+              id: 'queries',
+              label: 'Formal Legal Queries',
+              shortLabel: 'Legal Queries',
+              icon: <HelpCircle className="w-3.5 h-3.5" />,
+            },
+            {
+              id: 'chamber',
+              label: 'Live Faculty Chamber',
+              shortLabel: 'Live Chamber',
+              icon: <MessageSquare className="w-3.5 h-3.5" />,
+            },
+          ]}
+        />
 
         <button
           type="button"

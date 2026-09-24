@@ -156,6 +156,20 @@ export const downloadSubmissionPdf = async (
 };
 
 /**
+ * Fetch submitted answer copy or faculty marked copy as Blob for in-app PDF viewer
+ */
+export const fetchSubmissionPdfBlob = async (
+  id: string,
+  type: 'student' | 'evaluated' = 'student',
+  fileIndex: number = 0
+): Promise<Blob> => {
+  const res = await apiClient.get(`/mains/submissions/${id}/pdf?type=${type}&fileIndex=${fileIndex}`, {
+    responseType: 'blob',
+  });
+  return new Blob([res.data], { type: 'application/pdf' });
+};
+
+/**
  * Get direct stream URL for in-app PDF/image preview
  */
 export const getSubmissionPdfStreamUrl = (

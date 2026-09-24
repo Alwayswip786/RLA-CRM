@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UploadCloud,
   CheckCircle2,
   AlertCircle,
+  Eye,
 } from 'lucide-react';
 import { toast } from '../../../lib/toast';
 import { CustomSelect } from '../../../components/ui/CustomSelect';
+import { UniversalPdfModal } from '../../../components/pdf';
 
 const QUESTION_OPTIONS = [
   { value: 'DAW-2025-084', label: 'DAW #84: CPC Section 10 Res Sub Judice (Due Today)' },
@@ -16,8 +18,27 @@ const QUESTION_OPTIONS = [
 
 export const MainsSubmitPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState('DAW-2025-084');
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+      return;
+    }
+
+    const url = URL.createObjectURL(selectedFile);
+    setPreviewUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [selectedFile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -96,6 +117,27 @@ export const MainsSubmitPage: React.FC = () => {
                 className="hidden"
               />
             </label>
+
+            {selectedFile && (
+              <div className="flex items-center justify-between p-3 mt-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
+                <div className="flex items-center gap-2 truncate pr-2">
+                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                    {selectedFile.name}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                    ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c19b48]/20 hover:bg-[#c19b48]/30 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Preview Scanned Copy</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <button
@@ -140,6 +182,16 @@ export const MainsSubmitPage: React.FC = () => {
           </ul>
         </div>
       </div>
+
+      {/* Pre-Submission Scanned Copy In-App PDF Preview */}
+      <UniversalPdfModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        url={previewUrl}
+        title={selectedFile?.name || 'Scanned Copy Preview'}
+        subtitle="Pre-Submission Inspection"
+        downloadFileName={selectedFile?.name || 'mains_copy.pdf'}
+      />
     </div>
   );
 };

@@ -12,6 +12,7 @@ import {
 import { toast } from '../../lib/toast';
 import { apiClient } from '../../lib/apiClient';
 import type { AutopsyReviewData } from '../../types/testEngine.types';
+import { SegmentedTabs } from '../ui/tabs';
 
 interface TestAutopsyDebriefProps {
   reviewData: AutopsyReviewData;
@@ -182,55 +183,35 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-[#061120] p-1 rounded-xl border border-slate-200 dark:border-[#143564] text-xs">
-          <button
-            type="button"
-            onClick={() => setFilterMode('all')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
-              filterMode === 'all'
-                ? 'bg-white dark:bg-[#143564] text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            All ({summary.totalQuestions})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilterMode('correct')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
-              filterMode === 'correct'
-                ? 'bg-emerald-500 text-white shadow-xs'
-                : 'text-emerald-600 dark:text-emerald-400'
-            }`}
-          >
-            Correct ({summary.correct})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilterMode('incorrect')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
-              filterMode === 'incorrect'
-                ? 'bg-red-500 text-white shadow-xs'
-                : 'text-red-500'
-            }`}
-          >
-            Incorrect ({summary.incorrect})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilterMode('unattempted')}
-            className={`px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
-              filterMode === 'unattempted'
-                ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                : 'text-slate-500'
-            }`}
-          >
-            Skipped ({summary.unattempted})
-          </button>
-        </div>
+        <SegmentedTabs<'all' | 'correct' | 'incorrect' | 'unattempted'>
+          value={filterMode}
+          onChange={setFilterMode}
+          size="sm"
+          items={[
+            {
+              id: 'all',
+              label: `All (${summary.totalQuestions})`,
+              shortLabel: `All (${summary.totalQuestions})`,
+            },
+            {
+              id: 'correct',
+              label: `Correct (${summary.correct})`,
+              shortLabel: `Correct (${summary.correct})`,
+              badgeVariant: 'success',
+            },
+            {
+              id: 'incorrect',
+              label: `Incorrect (${summary.incorrect})`,
+              shortLabel: `Wrong (${summary.incorrect})`,
+              badgeVariant: 'danger',
+            },
+            {
+              id: 'unattempted',
+              label: `Skipped (${summary.unattempted})`,
+              shortLabel: `Skip (${summary.unattempted})`,
+            },
+          ]}
+        />
       </div>
 
       {/* Questions Autopsy Feed */}

@@ -1,29 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Trophy,
   Users,
   Lock,
 } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import { fetchLiveTestCatalog, fetchLiveTestLeaderboard } from '../../services/liveTest.service';
-import type { LiveMockTestItem, LiveLeaderboardData } from '../../types/liveTest.types';
-import { CustomSelect } from '../ui/CustomSelect';
+import type { LiveLeaderboardData } from '../../types/liveTest.types';
 import { PodiumSkeleton } from '../ui/skeleton';
 
 export const LiveTestLeaderboard: React.FC = () => {
-  const [tests, setTests] = useState<LiveMockTestItem[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string>('');
   const [leaderboardData, setLeaderboardData] = useState<LiveLeaderboardData | null>(null);
-  const [isLoadingTests, setIsLoadingTests] = useState<boolean>(true);
-  const [isLoadingRanks, setIsLoadingRanks] = useState<boolean>(false);
+  const [isLoadingRanks, setIsLoadingRanks] = useState<boolean>(true);
 
-  // Load tests catalog on mount
+  // Load tests catalog on mount to determine default live/attempted test
   useEffect(() => {
     const loadCatalog = async () => {
       try {
-        setIsLoadingTests(true);
         const catalog = await fetchLiveTestCatalog();
-        setTests(catalog);
         if (catalog.length > 0) {
           // Default to the first live or attempted test
           const defaultTest =
@@ -31,12 +25,13 @@ export const LiveTestLeaderboard: React.FC = () => {
             catalog.find((t) => t.totalAttempted > 0) ||
             catalog[0];
           setSelectedTestId(defaultTest.id);
+        } else {
+          setIsLoadingRanks(false);
         }
       } catch (err) {
         console.error('Failed to load live test catalog:', err);
         toast.error('Failed to load test catalog for leaderboard.');
-      } finally {
-        setIsLoadingTests(false);
+        setIsLoadingRanks(false);
       }
     };
     loadCatalog();
@@ -61,7 +56,6 @@ export const LiveTestLeaderboard: React.FC = () => {
     loadLeaderboard();
   }, [selectedTestId]);
 
-  const selectedTest = tests.find((t) => t.id === selectedTestId);
   const rows = leaderboardData?.leaderboard || [];
   const top1 = rows[0];
   const top2 = rows[1];
@@ -76,44 +70,21 @@ export const LiveTestLeaderboard: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Test Selector & Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
-            <Trophy className="w-3.5 h-3.5" />
-            <span>All-India Ranking Leaderboard</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            {selectedTest ? selectedTest.title : 'Live Test Standings'}
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Real-time merit list computed with official Judicial Commission negative marking and tie-breaking algorithms.
-          </p>
-        </div>
-
-        {/* Test Dropdown Selector */}
-        <div className="w-full sm:w-72 shrink-0">
-          {isLoadingTests ? (
-            <div className="h-10 w-full bg-slate-100 dark:bg-[#061120] rounded-xl animate-pulse" />
-          ) : (
-            <CustomSelect
-              options={tests.map((test) => ({
-                value: test.id,
-                label: `${test.title} (${test.phase.toUpperCase()})`,
-              }))}
-              value={selectedTestId}
-              onChange={(val) => setSelectedTestId(val)}
-              placeholder="Select Mock Exam"
-              searchable={tests.length > 5}
-              sheetTitle="Select Exam Leaderboard"
-              sheetSubtitle="Choose an All-India mock test to view standings"
-            />
-          )}
-        </div>
-      </div>
-
       {/* Loading Skeletons */}
       {isLoadingRanks && <PodiumSkeleton />}
+
+      {/* Empty State */}
+      {!isLoadingRanks && !leaderboardData && (
+        <div className="py-16 text-center rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-3">
+          <Users className="w-10 h-10 text-slate-400 mx-auto" />
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            No live test standings available
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            All-India rankings and merit percentiles will appear here once official mock tests are published.
+          </p>
+        </div>
+      )}
 
       {/* Standings Content */}
       {!isLoadingRanks && leaderboardData && (

@@ -109,12 +109,22 @@ export const getPublishedJudgements = catchAsync(async (req: Request, res: Respo
       .lean(),
   ]);
 
+  const totalPages = Math.ceil(total / limitNum) || 1;
+  const hasNextPage = pageNum < totalPages;
+  const hasPrevPage = pageNum > 1;
+
   res.status(200).json({
     success: true,
     count: judgements.length,
     total,
     page: pageNum,
-    totalPages: Math.ceil(total / limitNum) || 1,
+    currentPage: pageNum,
+    limit: limitNum,
+    totalPages,
+    hasNextPage,
+    hasMore: hasNextPage,
+    hasPrevPage,
+    nextPage: hasNextPage ? pageNum + 1 : null,
     judgements,
   });
 });

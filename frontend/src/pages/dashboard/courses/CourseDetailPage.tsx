@@ -27,6 +27,7 @@ import { toast } from '../../../lib/toast';
 import { ThemeSwitcher } from '../../../components/dashboard/ThemeSwitcher';
 import apiClient from '../../../lib/apiClient';
 import { CourseDetailSkeleton } from '../../../components/ui/skeleton';
+import { UnderlineTabs } from '../../../components/ui/tabs';
 
 interface LessonSubItem {
   id: string;
@@ -425,37 +426,27 @@ export const CourseDetailPage: React.FC = () => {
           >
             <div className="flex-1 rounded-2xl bg-white dark:bg-[#0b1322] border border-slate-200 dark:border-[#16253d] p-3.5 sm:p-4 shadow-xs transition-colors flex flex-col min-h-0 lg:overflow-hidden">
               {/* Top Navigation Tabs */}
-              <div className="flex items-center gap-6 border-b border-slate-200 dark:border-[#16253d] pb-3 mb-3 text-sm font-medium shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('modules')}
-                  className={`flex items-center gap-2 pb-1 border-b-2 transition-colors cursor-pointer ${
-                    activeTab === 'modules'
-                      ? 'border-[#c19b48] text-[#c19b48] dark:text-[#e8cf8d] font-semibold'
-                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <BookOpen className="w-4 h-4" />
-                  <span>All Modules ({modules.length})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('announcements')}
-                  className={`flex items-center gap-2 pb-1 border-b-2 transition-colors cursor-pointer relative ${
-                    activeTab === 'announcements'
-                      ? 'border-[#c19b48] text-[#c19b48] dark:text-[#e8cf8d] font-semibold'
-                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Bell className="w-4 h-4" />
-                  <span>Announcements</span>
-                  {announcements.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#c19b48] text-[#061120] font-bold">
-                      {announcements.length}
-                    </span>
-                  )}
-                </button>
-              </div>
+              <UnderlineTabs<'modules' | 'announcements'>
+                value={activeTab}
+                onChange={setActiveTab}
+                className="mb-3"
+                items={[
+                  {
+                    id: 'modules',
+                    label: `All Modules (${modules.length})`,
+                    shortLabel: `Modules (${modules.length})`,
+                    icon: <BookOpen className="w-4 h-4" />,
+                  },
+                  {
+                    id: 'announcements',
+                    label: 'Announcements',
+                    shortLabel: 'Announcements',
+                    icon: <Bell className="w-4 h-4" />,
+                    badge: announcements.length > 0 ? announcements.length : undefined,
+                    badgeVariant: 'gold',
+                  },
+                ]}
+              />
 
               {/* Tab: All Modules Accordions */}
               {activeTab === 'modules' && (

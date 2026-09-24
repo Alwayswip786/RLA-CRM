@@ -4,8 +4,6 @@ import {
   User,
   MapPin,
   CalendarCheck,
-  Download,
-  Loader2,
   Calendar,
   AlertTriangle,
   Sparkles,
@@ -14,7 +12,6 @@ import { toast } from '../../lib/toast';
 import {
   fetchMySchedule,
   switchActiveShift,
-  downloadIcalSchedule,
 } from '../../services/timetable.service';
 import type {
   TimetableHeader,
@@ -25,6 +22,16 @@ import type {
 import { ClassAlertButton } from '../../components/timetable/ClassAlertButton';
 import { NextClassHeroBanner } from '../../components/timetable/NextClassHeroBanner';
 import { TimetableSlotSkeleton } from '../../components/ui/skeleton';
+import { ScrollableTabs, SegmentedTabs } from '../../components/ui/tabs';
+
+const DAY_SHORT_NAMES: Record<DayOfWeek, string> = {
+  Monday: 'Mon',
+  Tuesday: 'Tue',
+  Wednesday: 'Wed',
+  Thursday: 'Thu',
+  Friday: 'Fri',
+  Saturday: 'Sat',
+};
 
 const DAYS: DayOfWeek[] = [
   'Monday',
@@ -42,7 +49,6 @@ export const TimetablePage: React.FC = () => {
   const [daySchedule, setDaySchedule] = useState<DaySchedule | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [switchingShift, setSwitchingShift] = useState<boolean>(false);
-  const [downloadingIcal, setDownloadingIcal] = useState<boolean>(false);
 
   const loadSchedule = useCallback(
     async (day: DayOfWeek, shiftId?: string) => {
@@ -92,89 +98,47 @@ export const TimetablePage: React.FC = () => {
     }
   };
 
-  const handleDownloadCalendar = async () => {
-    try {
-      setDownloadingIcal(true);
-      await downloadIcalSchedule(activeShiftId);
-      toast.success('Academic timetable calendar (.ics) downloaded.');
-    } catch {
-      toast.error('Failed to download calendar.');
-    } finally {
-      setDownloadingIcal(false);
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200 select-none">
-      {/* Header Banner */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold mb-2">
-            <CalendarCheck className="w-3.5 h-3.5" />
-            <span>{headerInfo?.sessionName || 'Academic Schedule 2025–26'}</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Batch Timetable & Shift Schedule
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {headerInfo?.subtitle ||
-              'Foundation Judicial Services Batch (Morning 8:30 AM & Evening 5:00 PM Shifts)'}
-          </p>
-        </div>
-
-        {/* Right Action Controls: Shift Toggle & iCal Download */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Shift Toggles */}
-          {headerInfo?.shifts?.map((shift) => (
-            <button
-              key={shift.shiftId}
-              onClick={() => handleShiftChange(shift)}
-              disabled={switchingShift}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                activeShiftId === shift.shiftId
-                  ? 'bg-[#0a1c36] dark:bg-[#143564] text-white border-[#c19b48]/60 shadow-xs font-bold'
-                  : 'bg-white dark:bg-[#061120] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/40'
-              }`}
-            >
-              {shift.name}
-            </button>
-          ))}
-
-          {/* Add to Calendar Button */}
-          <button
-            onClick={handleDownloadCalendar}
-            disabled={downloadingIcal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-[#143564] transition-all cursor-pointer"
-            title="Download iCalendar file to sync with Apple/Google Calendar"
-          >
-            {downloadingIcal ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Download className="w-3.5 h-3.5 text-[#c19b48]" />
-            )}
-            <span>Add to Calendar</span>
-          </button>
-        </div>
-      </div>
-
       {/* Next Class Hero Banner (Smart Ticker) */}
       <NextClassHeroBanner />
 
-      {/* Days Selector Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {DAYS.map((d) => (
-          <button
-            key={d}
-            onClick={() => setSelectedDay(d)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              selectedDay === d
-                ? 'bg-[#c19b48] text-[#061120] shadow-md font-bold'
-                : 'bg-white dark:bg-[#0a1c36] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564] hover:bg-slate-100 dark:hover:bg-white/5'
-            }`}
-          >
-            {d}
-          </button>
-        ))}
+      {/* Schedule Navigation Toolbar: Days Selector (Left) & Shift Switcher (Right) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+        {/* Days Selector Tabs */}
+        <div className="flex-1 min-w-0">
+          <ScrollableTabs<DayOfWeek>
+            value={selectedDay}
+            onChange={setSelectedDay}
+            variant="pill"
+            items={DAYS.map((d) => ({
+              id: d,
+              label: d,
+              shortLabel: DAY_SHORT_NAMES[d],
+            }))}
+          />
+        </div>
+
+        {/* Shift Switcher Controls */}
+        {headerInfo?.shifts && headerInfo.shifts.length > 0 && (
+          <div className="shrink-0 w-full lg:w-auto">
+            <SegmentedTabs<string>
+              value={activeShiftId}
+              onChange={(newShiftId) => {
+                const shift = headerInfo.shifts.find((s) => s.shiftId === newShiftId);
+                if (shift) handleShiftChange(shift);
+              }}
+              size="md"
+              fullWidthMobile={true}
+              items={headerInfo.shifts.map((s) => ({
+                id: s.shiftId,
+                label: s.name,
+                shortLabel: s.name.replace(' Shift', ''),
+                disabled: switchingShift,
+              }))}
+            />
+          </div>
+        )}
       </div>
 
       {/* Slots List or Loading / Holiday State */}

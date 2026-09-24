@@ -7,7 +7,6 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  Eye,
   Loader2,
   Bookmark,
 } from 'lucide-react';
@@ -235,35 +234,14 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
         )}
       </div>
 
-      {/* Card Footer Actions & Stats */}
-      <div className="pt-3 border-t border-slate-100 dark:border-[#143564]/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Download & View stats */}
-        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <span className="flex items-center gap-1">
-            <Download className="w-3 h-3 text-[#c19b48]" />
-            <span>{judgement.downloadCount} downloads</span>
-          </span>
-          <span>•</span>
-          <span className="flex items-center gap-1">
-            <Eye className="w-3 h-3 text-slate-400" />
-            <span>{judgement.viewCount} views</span>
-          </span>
-          {judgement.pdfFile?.sizeFormatted && (
-            <>
-              <span>•</span>
-              <span className="font-mono text-slate-400">{judgement.pdfFile.sizeFormatted}</span>
-            </>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          {/* Read Digest Viewer */}
-          <button
-            type="button"
-            onClick={() => onPreview(judgement)}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-700 dark:text-slate-200 font-semibold text-xs border border-slate-200 dark:border-[#143564] transition-colors cursor-pointer"
-          >
+      {/* Card Footer Actions */}
+      <div className="pt-3 border-t border-slate-100 dark:border-[#143564]/60 flex items-center justify-end gap-2">
+        {/* Read Digest Viewer */}
+        <button
+          type="button"
+          onClick={() => onPreview(judgement)}
+          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-700 dark:text-slate-200 font-semibold text-xs border border-slate-200 dark:border-[#143564] transition-colors cursor-pointer"
+        >
             <BookOpen className="w-3.5 h-3.5" />
             <span>Read Digest</span>
           </button>
@@ -286,6 +264,5 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
           )}
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };

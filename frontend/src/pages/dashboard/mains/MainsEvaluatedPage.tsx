@@ -1,36 +1,45 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FileCheck,
   Download,
   Award,
   Clock,
   Sparkles,
   CheckCircle2,
   Loader2,
-  PenTool,
   BookOpen,
   X,
   XCircle,
   Lightbulb,
+  Eye,
 } from 'lucide-react';
 import { toast } from '../../../lib/toast';
 import {
   fetchMySubmissions,
   downloadSubmissionPdf,
   fetchSubmissionAutopsy,
+  fetchSubmissionPdfBlob,
+  getSubmissionPdfStreamUrl,
 } from '../../../services/mains.service';
 import type { MainsSubmission } from '../../../types/mains.types';
 import { EvaluatedSubmissionSkeleton } from '../../../components/ui/skeleton';
+import { UniversalPdfModal } from '../../../components/pdf';
 
 export const MainsEvaluatedPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [submissions, setSubmissions] = useState<MainsSubmission[]>([]);
-  const [counts, setCounts] = useState({ total: 0, pending: 0, evaluated: 0 });
-  const [filterStatus, setFilterStatus] = useState<'all' | 'evaluated' | 'pending'>('evaluated');
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // In-App PDF Viewer State
+  const [viewingPdf, setViewingPdf] = useState<{
+    url: string;
+    title: string;
+    subtitle: string;
+    downloadFileName: string;
+  } | null>(null);
+  const [loadingPdfKey, setLoadingPdfKey] = useState<string | null>(null);
 
   // Comparative Autopsy Modal
   const [autopsySubmission, setAutopsySubmission] = useState<MainsSubmission | null>(null);
@@ -39,17 +48,16 @@ export const MainsEvaluatedPage: React.FC = () => {
   const loadSubmissions = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetchMySubmissions(filterStatus === 'all' ? undefined : filterStatus);
+      const res = await fetchMySubmissions();
       if (res.success) {
         setSubmissions(res.submissions);
-        setCounts(res.counts);
       }
     } catch {
       toast.error('Failed to fetch evaluated answer copies.');
     } finally {
       setIsLoading(false);
     }
-  }, [filterStatus]);
+  }, []);
 
   useEffect(() => {
     loadSubmissions();
@@ -75,6 +83,43 @@ export const MainsEvaluatedPage: React.FC = () => {
     }
   };
 
+  const handleViewPdf = async (
+    submissionId: string,
+    type: 'student' | 'evaluated',
+    title: string,
+    subtitle: string,
+    filename: string
+  ) => {
+    try {
+      setLoadingPdfKey(`${submissionId}-${type}`);
+      const blob = await fetchSubmissionPdfBlob(submissionId, type);
+      const url = window.URL.createObjectURL(blob);
+      setViewingPdf({
+        url,
+        title,
+        subtitle,
+        downloadFileName: filename,
+      });
+    } catch {
+      const fallbackUrl = getSubmissionPdfStreamUrl(submissionId, type);
+      setViewingPdf({
+        url: fallbackUrl,
+        title,
+        subtitle,
+        downloadFileName: filename,
+      });
+    } finally {
+      setLoadingPdfKey(null);
+    }
+  };
+
+  const handleClosePdf = () => {
+    if (viewingPdf?.url && viewingPdf.url.startsWith('blob:')) {
+      window.URL.revokeObjectURL(viewingPdf.url);
+    }
+    setViewingPdf(null);
+  };
+
   const handleOpenAutopsy = async (sub: MainsSubmission) => {
     try {
       setIsLoadingAutopsy(true);
@@ -91,73 +136,8 @@ export const MainsEvaluatedPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200 pb-16">
-      {/* 1. Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-xs">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-2">
-            <FileCheck className="w-3.5 h-3.5" />
-            <span>Faculty Evaluated Copies & Remarks</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
-            Evaluated Copies & Feedback
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Review detailed marginal annotations, rubric scorecards, and model answer autopsy by Adv. Rajinder Sir.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-          <div className="text-left sm:text-right">
-            <span className="text-xs text-slate-400 block">Total Evaluated</span>
-            <span className="text-xl font-bold text-[#c19b48] dark:text-[#e8cf8d] font-mono">
-              {counts.evaluated} Copies
-            </span>
-          </div>
-
-          <button
-            onClick={() => navigate('/dashboard/mains/questions')}
-            className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
-          >
-            <PenTool className="w-3.5 h-3.5" />
-            <span>Today's Daily Question</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-[#143564] pb-2 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setFilterStatus('evaluated')}
-          className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-            filterStatus === 'evaluated'
-              ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-              : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          Evaluated Copies ({counts.evaluated})
-        </button>
-        <button
-          onClick={() => setFilterStatus('pending')}
-          className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-            filterStatus === 'pending'
-              ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-              : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          Pending Review ({counts.pending})
-        </button>
-        <button
-          onClick={() => setFilterStatus('all')}
-          className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-            filterStatus === 'all'
-              ? 'bg-slate-200 dark:bg-[#143564] text-slate-900 dark:text-white'
-              : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          All Submissions ({counts.total})
-        </button>
-      </div>
+    <div className={`max-w-7xl mx-auto animate-in fade-in duration-200 ${submissions.length > 0 ? 'space-y-6 pb-16' : ''}`}>
+      {/* Submissions Feed */}
 
       {/* 3. Submissions Feed */}
       {isLoading ? (
@@ -349,40 +329,89 @@ export const MainsEvaluatedPage: React.FC = () => {
                       </button>
                     )}
 
-                    <button
-                      type="button"
-                      disabled={downloadingId === `${sub._id}-student`}
-                      onClick={() =>
-                        handleDownload(sub._id, 'student', sub.studentPdf?.originalName || 'answer_copy.pdf')
-                      }
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-[#143564] cursor-pointer"
-                    >
-                      {downloadingId === `${sub._id}-student` ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Download className="w-3.5 h-3.5" />
-                      )}
-                      <span>Original Copy</span>
-                    </button>
-
-                    {/* Evaluated Marked Copy */}
+                    {/* Evaluated Marked Copy - View & Download */}
                     {sub.evaluatedPdf && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={loadingPdfKey === `${sub._id}-evaluated`}
+                          onClick={() =>
+                            handleViewPdf(
+                              sub._id,
+                              'evaluated',
+                              `Evaluated Copy • Challenge #${sub.question?.challengeNumber ?? ''}`,
+                              `${sub.question?.title || ''} • Score: ${sub.score}/${sub.maxScore || 15}`,
+                              sub.evaluatedPdf!.originalName
+                            )
+                          }
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-60"
+                        >
+                          {loadingPdfKey === `${sub._id}-evaluated` ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Eye className="w-3.5 h-3.5" />
+                          )}
+                          <span>View Marked Copy</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={downloadingId === `${sub._id}-evaluated`}
+                          onClick={() =>
+                            handleDownload(sub._id, 'evaluated', sub.evaluatedPdf!.originalName)
+                          }
+                          className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
+                          title="Download Marked PDF"
+                        >
+                          {downloadingId === `${sub._id}-evaluated` ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Student Original Copy - View & Download */}
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        disabled={downloadingId === `${sub._id}-evaluated`}
+                        disabled={loadingPdfKey === `${sub._id}-student`}
                         onClick={() =>
-                          handleDownload(sub._id, 'evaluated', sub.evaluatedPdf!.originalName)
+                          handleViewPdf(
+                            sub._id,
+                            'student',
+                            `Submitted Copy • Challenge #${sub.question?.challengeNumber ?? ''}`,
+                            sub.question?.title || 'Daily Mains Answer Sheet',
+                            sub.studentPdf?.originalName || 'answer_copy.pdf'
+                          )
                         }
-                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-[#143564] cursor-pointer disabled:opacity-60"
                       >
-                        {downloadingId === `${sub._id}-evaluated` ? (
+                        {loadingPdfKey === `${sub._id}-student` ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          <FileCheck className="w-3.5 h-3.5" />
+                          <Eye className="w-3.5 h-3.5" />
                         )}
-                        <span>Download Marked PDF</span>
+                        <span>View Original</span>
                       </button>
-                    )}
+
+                      <button
+                        type="button"
+                        disabled={downloadingId === `${sub._id}-student`}
+                        onClick={() =>
+                          handleDownload(sub._id, 'student', sub.studentPdf?.originalName || 'answer_copy.pdf')
+                        }
+                        className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564] cursor-pointer"
+                        title="Download Original PDF"
+                      >
+                        {downloadingId === `${sub._id}-student` ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <span className="text-[11px] text-slate-400 font-mono">
@@ -395,24 +424,21 @@ export const MainsEvaluatedPage: React.FC = () => {
         </div>
       ) : (
         /* Empty State */
-        <div className="p-12 text-center bg-white dark:bg-[#0a1c36] rounded-2xl border border-slate-200 dark:border-[#143564] space-y-4">
-          <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 flex items-center justify-center mx-auto">
-            <FileCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
-              No evaluated copies found in this tab
+        <div className="min-h-[calc(100dvh-12rem)] flex flex-col items-center justify-center text-center space-y-4 py-8 px-4">
+          <div className="max-w-md mx-auto space-y-2">
+            <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white">
+              No evaluated copies yet
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-              Submit today's Daily Mains Question to have your handwritten answer booklet evaluated with line-by-line faculty feedback.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Submit today&apos;s Daily Mains Question to have your handwritten answer booklet evaluated with line-by-line faculty feedback.
             </p>
           </div>
 
           <button
             onClick={() => navigate('/dashboard/mains/questions')}
-            className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors cursor-pointer shadow-xs"
+            className="px-4 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors cursor-pointer shadow-xs"
           >
-            Solve Today's Daily Question
+            Solve Today&apos;s Daily Question
           </button>
         </div>
       )}
@@ -538,6 +564,54 @@ export const MainsEvaluatedPage: React.FC = () => {
             {/* Modal Actions */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-3 border-t border-slate-100 dark:border-[#143564] gap-2.5">
               <div className="flex items-center gap-2 flex-wrap">
+                {/* View Original Copy */}
+                <button
+                  type="button"
+                  disabled={loadingPdfKey === `${autopsySubmission._id}-student`}
+                  onClick={() =>
+                    handleViewPdf(
+                      autopsySubmission._id,
+                      'student',
+                      `Submitted Answer Copy • Challenge #${autopsySubmission.question?.challengeNumber ?? ''}`,
+                      autopsySubmission.question?.title || 'Daily Mains Answer Sheet',
+                      autopsySubmission.studentPdf?.originalName || 'answer_copy.pdf'
+                    )
+                  }
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] text-slate-800 dark:text-white text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-200 dark:border-[#143564] cursor-pointer"
+                >
+                  {loadingPdfKey === `${autopsySubmission._id}-student` ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Eye className="w-3.5 h-3.5" />
+                  )}
+                  <span>View My Copy</span>
+                </button>
+
+                {/* View Marked Copy */}
+                {autopsySubmission.evaluatedPdf && (
+                  <button
+                    type="button"
+                    disabled={loadingPdfKey === `${autopsySubmission._id}-evaluated`}
+                    onClick={() =>
+                      handleViewPdf(
+                        autopsySubmission._id,
+                        'evaluated',
+                        `Evaluated Marked Copy • Challenge #${autopsySubmission.question?.challengeNumber ?? ''}`,
+                        `${autopsySubmission.question?.title || ''} • Score: ${autopsySubmission.score}/${autopsySubmission.maxScore || 15}`,
+                        autopsySubmission.evaluatedPdf!.originalName
+                      )
+                    }
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {loadingPdfKey === `${autopsySubmission._id}-evaluated` ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                    <span>View Marked Copy</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() =>
@@ -547,28 +621,11 @@ export const MainsEvaluatedPage: React.FC = () => {
                       autopsySubmission.studentPdf?.originalName || 'answer_copy.pdf'
                     )
                   }
-                  className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] text-slate-800 dark:text-white text-xs font-semibold flex items-center justify-center gap-1 border border-slate-200 dark:border-[#143564] cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1 border border-slate-200 dark:border-[#143564] cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download My Copy</span>
+                  <span>Download</span>
                 </button>
-
-                {autopsySubmission.evaluatedPdf && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleDownload(
-                        autopsySubmission._id,
-                        'evaluated',
-                        autopsySubmission.evaluatedPdf!.originalName
-                      )
-                    }
-                    className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <FileCheck className="w-3.5 h-3.5" />
-                    <span>Download Marked Copy</span>
-                  </button>
-                )}
               </div>
 
               <button
@@ -582,6 +639,16 @@ export const MainsEvaluatedPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Reusable In-App Universal PDF Modal */}
+      <UniversalPdfModal
+        isOpen={!!viewingPdf}
+        onClose={handleClosePdf}
+        url={viewingPdf?.url || null}
+        title={viewingPdf?.title || ''}
+        subtitle={viewingPdf?.subtitle}
+        downloadFileName={viewingPdf?.downloadFileName}
+      />
     </div>
   );
 };
