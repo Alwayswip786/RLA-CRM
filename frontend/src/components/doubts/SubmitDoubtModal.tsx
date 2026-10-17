@@ -211,18 +211,18 @@ export const SubmitDoubtModal: React.FC<SubmitDoubtModalProps> = ({
           </div>
 
           {/* Modal Footer Actions */}
-          <div className="pt-3 sm:pt-4 flex items-center justify-end gap-2.5 sm:gap-3 border-t border-slate-200 dark:border-[#143564]">
+          <div className="pt-3 sm:pt-4 grid grid-cols-[auto_minmax(0,1fr)] sm:flex sm:items-center sm:justify-end gap-2 sm:gap-3 border-t border-slate-200 dark:border-[#143564]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 sm:px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              className="px-3 sm:px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer whitespace-nowrap"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 sm:px-6 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+              className="min-w-0 w-full sm:w-auto px-3 sm:px-6 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 whitespace-nowrap"
             >
               {isSubmitting ? (
                 <>
@@ -232,7 +232,8 @@ export const SubmitDoubtModal: React.FC<SubmitDoubtModalProps> = ({
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5" />
-                  <span>Submit Query to Faculty</span>
+                  <span className="sm:hidden">Submit Query</span>
+                  <span className="hidden sm:inline">Submit Query to Faculty</span>
                 </>
               )}
             </button>

@@ -147,11 +147,14 @@ export const MockSeriesPage: React.FC = () => {
         <SegmentedTabs<ActiveTab>
           value={activeTab}
           onChange={setActiveTab}
+          size="sm"
+          hideIconsOnMobile
+          ariaLabel="Mock series sections"
           items={[
             {
               id: 'hub',
               label: 'Live Exam Hub',
-              shortLabel: 'Exam Hub',
+              shortLabel: 'Exam',
               icon: <Radio className="w-3.5 h-3.5" />,
               badge: liveCount > 0 ? `${liveCount} Live` : undefined,
               badgeVariant: liveCount > 0 ? 'danger' : undefined,
@@ -198,69 +201,69 @@ export const MockSeriesPage: React.FC = () => {
                 return (
                   <div
                     key={test.id}
-                    className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col justify-between space-y-4 shadow-xs hover:border-[#c19b48]/60 transition-all"
+                    className="min-w-0 p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col justify-between gap-4 shadow-xs hover:border-[#c19b48]/60 transition-all"
                   >
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
+                    <div className="min-w-0 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="max-w-full text-[10px] px-2.5 py-1 rounded-full font-bold uppercase leading-tight bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
                           {test.targetState}
                         </span>
 
                         {/* Status Pills */}
                         {isAttempted ? (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                          <span className="text-[10px] px-2 py-1 rounded-full font-bold uppercase leading-tight bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                             Attempted
                           </span>
                         ) : isLive ? (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-red-500/15 text-red-500 border border-red-500/30 animate-pulse flex items-center gap-1">
+                          <span className="text-[10px] px-2 py-1 rounded-full font-bold uppercase leading-tight bg-red-500/15 text-red-500 border border-red-500/30 flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                             <span>Live Now</span>
                           </span>
                         ) : isScheduled ? (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-blue-500/15 text-blue-500 border border-blue-500/30 flex items-center gap-1">
+                          <span className="text-[10px] px-2 py-1 rounded-full font-bold uppercase leading-tight bg-blue-500/15 text-blue-500 border border-blue-500/30 flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             <span>Scheduled</span>
                           </span>
                         ) : (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                          <span className="text-[10px] px-2 py-1 rounded-full font-bold uppercase leading-tight bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
                             Closed
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white line-clamp-1">
+                      <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white break-words leading-snug">
                         {test.title}
                       </h3>
 
-                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed break-words">
                         {test.syllabus}
                       </p>
 
-                      <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                        <div className="flex items-center gap-1">
-                          <CheckSquare className="w-3.5 h-3.5 text-[#c19b48]" />
-                          <span>{test.questionsCount} Questions</span>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div className="min-w-0 flex items-center gap-1.5">
+                          <CheckSquare className="w-3.5 h-3.5 shrink-0 text-[#c19b48]" />
+                          <span className="min-w-0 break-words">{test.questionsCount} Questions</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-[#c19b48]" />
-                          <span>{test.durationFormatted}</span>
+                        <div className="min-w-0 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 shrink-0 text-[#c19b48]" />
+                          <span className="min-w-0 break-words">{test.durationFormatted}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 dark:border-[#143564]">
                       {isAttempted ? (
-                        <div className="flex items-center justify-between text-xs">
-                          <div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs">
+                          <div className="min-w-[130px] flex-1">
                             <span className="text-slate-400 block text-[10px]">Score / Rank</span>
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                            <span className="break-words font-bold text-emerald-600 dark:text-emerald-400 font-mono text-[11px] sm:text-xs">
                               {test.officialScore} pts {test.officialRank ? `• AIR #${test.officialRank}` : ''}
                             </span>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleStartLiveTest(test)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-800 dark:text-slate-200 font-semibold text-xs transition-colors cursor-pointer"
+                            className="shrink-0 whitespace-nowrap px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-800 dark:text-slate-200 font-semibold text-[11px] sm:text-xs transition-colors cursor-pointer"
                           >
                             Re-Attempt
                           </button>

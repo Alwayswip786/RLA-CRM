@@ -323,7 +323,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           }}
                           title={isEffectiveCollapsed ? item.title : undefined}
                           className={cn(
-                            'w-full h-10 flex items-center rounded-xl text-xs font-medium transition-colors group relative text-left cursor-pointer overflow-hidden border border-transparent shrink-0',
+                            'w-full min-h-10 py-1 flex items-center rounded-xl text-xs font-medium transition-colors group relative text-left border border-transparent shrink-0',
                             'text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
                           )}
                         >
@@ -332,13 +332,13 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           </div>
                           <div
                             className={cn(
-                              'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
+                              'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
                               isEffectiveCollapsed
-                                ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none'
+                                ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none overflow-hidden'
                                 : 'opacity-100 w-auto pr-2.5 translate-x-0'
                             )}
                           >
-                            <span className="truncate">{item.title}</span>
+                            <span className="min-w-0 flex-1 break-words leading-tight">{item.title}</span>
                             {displayBadge && (
                               <span
                                 className={cn(
@@ -361,7 +361,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         onClick={() => onCloseMobile()}
                         title={isEffectiveCollapsed ? item.title : undefined}
                         className={cn(
-                          'w-full h-10 flex items-center rounded-xl text-xs font-medium transition-colors group relative overflow-hidden shrink-0',
+                          'w-full min-h-10 py-1 flex items-center rounded-xl text-xs font-medium transition-colors group relative shrink-0',
                           active
                             ? 'bg-[#c19b48] text-[#061120] font-semibold shadow-xs border border-[#a88232]/40 dark:border-[#e8cf8d]/30'
                             : 'border border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
@@ -380,13 +380,13 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         </div>
                         <div
                           className={cn(
-                            'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
+                            'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
                             isEffectiveCollapsed
-                              ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none'
+                              ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none overflow-hidden'
                               : 'opacity-100 w-auto pr-2.5 translate-x-0'
                           )}
                         >
-                          <span className="truncate">{item.title}</span>
+                          <span className="min-w-0 flex-1 break-words leading-tight">{item.title}</span>
                           {displayBadge && (
                             <span
                               className={cn(
@@ -410,7 +410,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         onClick={() => toggleSubMenu(item.id)}
                         title={isEffectiveCollapsed ? item.title : undefined}
                         className={cn(
-                          'w-full h-10 flex items-center rounded-xl text-xs font-medium transition-colors group text-left cursor-pointer overflow-hidden shrink-0',
+                          'w-full min-h-10 py-1 flex items-center rounded-xl text-xs font-medium transition-colors group text-left cursor-pointer shrink-0',
                           active
                             ? 'bg-slate-200/70 dark:bg-[#0a1c36] text-slate-900 dark:text-white border border-slate-300 dark:border-[#143564]'
                             : 'border border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
@@ -421,13 +421,13 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         </div>
                         <div
                           className={cn(
-                            'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
+                            'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
                             isEffectiveCollapsed
-                              ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none'
+                              ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none overflow-hidden'
                               : 'opacity-100 w-auto pr-2.5 translate-x-0'
                           )}
                         >
-                          <span className="truncate flex-1">{item.title}</span>
+                          <span className="min-w-0 flex-1 break-words leading-tight">{item.title}</span>
                           {displayBadge && (
                             <span
                               className={cn(
@@ -454,7 +454,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           className={cn(
                             'pl-6 pr-1 space-y-1 border-l border-slate-300 dark:border-[#143564]/50 ml-5 transition-all duration-200 overflow-hidden',
                             !isEffectiveCollapsed && isParentOpen
-                              ? 'max-h-60 opacity-100 my-1 py-1'
+                              ? 'max-h-[480px] opacity-100 my-1 py-1'
                               : 'max-h-0 opacity-0 my-0 py-0 pointer-events-none'
                           )}
                         >
@@ -466,13 +466,13 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                                 to={sub.url}
                                 onClick={() => onCloseMobile()}
                                 className={cn(
-                                  'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors',
+                                  'flex items-start justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors',
                                   subActive
                                     ? 'text-[#c19b48] dark:text-[#e8cf8d] font-semibold bg-amber-50 dark:bg-[#143564]/40'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/[0.03]'
                                 )}
                               >
-                                <span className="truncate">{sub.title}</span>
+                                <span className="min-w-0 break-words leading-tight">{sub.title}</span>
                               </Link>
                             );
                           })}
@@ -489,7 +489,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
         {/* 3. Footer Area: Student Profile */}
         <div className="p-4 border-t border-slate-200 dark:border-[#143564]/60 space-y-2 shrink-0 bg-slate-100/60 dark:bg-[#040b14]/50 overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* Student Profile Row */}
-          <div className="flex items-center h-10 rounded-xl bg-white dark:bg-[#0a1c36]/60 border border-slate-200 dark:border-[#143564]/50 shadow-xs overflow-hidden w-full shrink-0">
+          <div className="flex items-center min-h-10 rounded-xl bg-white dark:bg-[#0a1c36]/60 border border-slate-200 dark:border-[#143564]/50 shadow-xs w-full shrink-0">
             <div className="w-10 h-10 flex items-center justify-center shrink-0">
               <div className="w-7 h-7 rounded-lg bg-[#c19b48]/20 border border-[#c19b48]/40 text-[#c19b48] dark:text-[#e8cf8d] flex items-center justify-center font-bold text-xs">
                 <User className="w-3.5 h-3.5 text-[#c19b48]" />
@@ -498,13 +498,13 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
 
             <div
               className={cn(
-                'flex items-center justify-between flex-1 min-w-0 transition-all duration-200 whitespace-nowrap overflow-hidden',
-                isEffectiveCollapsed ? 'opacity-0 w-0 pr-0 pointer-events-none' : 'opacity-100 w-auto pr-2'
+                'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
+                isEffectiveCollapsed ? 'opacity-0 w-0 pr-0 pointer-events-none overflow-hidden' : 'opacity-100 w-auto pr-2'
               )}
             >
               <div className="flex-1 min-w-0 pr-1">
-                <h5 className="text-xs font-semibold text-slate-900 dark:text-white truncate">{displayName}</h5>
-                <p className="text-[10px] text-[#c19b48] font-mono truncate">Roll: {displayRoll}</p>
+                <h5 className="text-xs font-semibold text-slate-900 dark:text-white break-words leading-tight">{displayName}</h5>
+                <p className="text-[10px] text-[#c19b48] font-mono break-words leading-tight">Roll: {displayRoll}</p>
               </div>
 
               <button

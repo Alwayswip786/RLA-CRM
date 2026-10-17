@@ -271,7 +271,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-30 h-14 bg-[#F7F3E6]/95 dark:bg-[#0a1c36]/90 backdrop-blur-md border-b border-[#ded7c4] dark:border-[#143564] px-2.5 sm:px-4 lg:px-6 flex items-center justify-between text-slate-800 dark:text-slate-100 transition-colors">
+      <header className="sticky top-0 z-30 min-h-14 py-1.5 bg-[#F7F3E6]/95 dark:bg-[#0a1c36]/90 backdrop-blur-md border-b border-[#ded7c4] dark:border-[#143564] px-2.5 sm:px-4 lg:px-6 flex items-center justify-between text-slate-800 dark:text-slate-100 transition-colors">
         {/* Left Side: Toggle & Breadcrumb / Batch */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
           {/* Desktop Toggle (>= 1024px) */}
@@ -300,9 +300,15 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
           {/* Separator */}
           <div className="h-4 w-px bg-slate-200 dark:bg-[#143564] shrink-0" />
 
-          {/* Breadcrumb with guaranteed truncation */}
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <span className="text-xs font-semibold text-slate-900 dark:text-white tracking-wide truncate block">
+          {/* Keep the full page name readable; the header can grow for wrapped titles. */}
+          <div className="min-w-0 flex-1">
+            <span
+              className={`font-semibold text-slate-900 dark:text-white tracking-wide block whitespace-normal break-words leading-tight ${
+                location.pathname.includes('/tests/results') ? 'text-[10px] sm:text-xs' : 'text-xs'
+              }`}
+              title={getBreadcrumb()}
+              aria-label={getBreadcrumb()}
+            >
               {getBreadcrumb()}
             </span>
           </div>
@@ -311,7 +317,7 @@ export const StudentNavbar: React.FC<StudentNavbarProps> = ({
         {/* Right Side: Search, Live Pulse, Notifications, ThemeSwitcher, Profile */}
         <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0">
           {/* Dynamic Live Schedule Badge (from Admin Panel) */}
-          {liveLecture && (
+          {liveLecture && !location.pathname.includes('/dashboard/live-classes') && (
             <button
               type="button"
               onClick={() => navigate(liveLecture.url)}

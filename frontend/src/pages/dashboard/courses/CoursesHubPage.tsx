@@ -106,10 +106,17 @@ export const CoursesHubPage: React.FC = () => {
             {courses.map((course) => (
               <div
                 key={course.id || course.courseId}
-                className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs hover:border-[#c19b48]/60 transition-all group"
+                className="min-w-0 p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs hover:border-[#c19b48]/60 transition-all group"
               >
                 {/* Thumbnail & Title Area */}
-                <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="grid min-w-0 flex-1 grid-cols-[7rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 sm:flex sm:gap-4">
+                  <h3
+                    onClick={() => navigate(`/dashboard/courses/${course.slug || course.id}`)}
+                    className="col-span-2 min-w-0 text-sm font-serif font-bold text-slate-900 dark:text-white leading-snug break-words [overflow-wrap:anywhere] cursor-pointer sm:hidden"
+                  >
+                    {course.title}
+                  </h3>
+
                   {/* Thumbnail Box matching 16:9 in image */}
                   <div
                     onClick={() => navigate(`/dashboard/courses/${course.slug || course.id}`)}
@@ -132,7 +139,7 @@ export const CoursesHubPage: React.FC = () => {
                   <div className="space-y-1.5 min-w-0 flex-1">
                     <h3
                       onClick={() => navigate(`/dashboard/courses/${course.slug || course.id}`)}
-                      className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors line-clamp-1 cursor-pointer"
+                      className="hidden sm:block text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors break-words leading-snug cursor-pointer"
                     >
                       {course.title}
                     </h3>

@@ -224,7 +224,7 @@ export const DashboardPreview: React.FC = () => {
         </div>
 
         {/* Inner Card: Lecture Details, Action, Progress */}
-        <div className="p-3.5 sm:p-4 md:p-5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]/70">
+        <div className="p-3 sm:p-4 md:p-5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]/70">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
             {/* Left Column: Module, Subject, Title, Description */}
             <div className="space-y-2 sm:space-y-2.5 max-w-3xl min-w-0">
@@ -244,9 +244,14 @@ export const DashboardPreview: React.FC = () => {
               </h3>
 
               {/* Instructor & Description */}
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed break-words">
-                Instructor: Adv. Rajinder Sir • Comprehensive comparison of rule of evidence vs rule of procedure with leading Supreme Court precedents.
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                  Instructor: Adv. Rajinder Sir
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed break-words">
+                  Comprehensive comparison of rule of evidence vs rule of procedure with leading Supreme Court precedents.
+                </p>
+              </div>
             </div>
 
             {/* Primary Action Button (Full-width touch target on mobile, auto-width on tablet/desktop) */}
@@ -262,11 +267,11 @@ export const DashboardPreview: React.FC = () => {
 
           {/* Progress Bar & Timestamp Row */}
           <div className="mt-3.5 sm:mt-4 pt-3 border-t border-slate-200 dark:border-[#143564]/50">
-            <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs text-slate-600 dark:text-slate-400 mb-1.5">
-              <span className="min-w-0 break-words">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-2 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 mb-1.5">
+              <span className="whitespace-nowrap">
                 Progress: <strong className="text-slate-800 dark:text-slate-200 font-semibold font-mono">28:14 / 54:00 mins</strong>
               </span>
-              <span className="font-bold font-mono text-[#c19b48] dark:text-[#e8cf8d] shrink-0">
+              <span className="font-bold font-mono text-[#c19b48] dark:text-[#e8cf8d] whitespace-nowrap sm:text-right">
                 68% Completed
               </span>
             </div>
@@ -280,14 +285,14 @@ export const DashboardPreview: React.FC = () => {
         </div>
 
         {/* Footer: Course Context & Action Link (Stacked on mobile, row on tablet/desktop) */}
-        <div className="mt-3.5 sm:mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 text-xs pt-0.5">
+        <div className="mt-3.5 sm:mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 text-xs border-t border-slate-200 dark:border-[#143564]/50 pt-3">
           <span className="text-slate-500 dark:text-slate-400 min-w-0 break-words">
             Course: <strong className="text-slate-800 dark:text-slate-200 font-semibold">PCS-J Comprehensive Foundation 2025-26</strong>
           </span>
           <button
             type="button"
             onClick={() => navigate('/dashboard/courses/pcs-j-foundation')}
-            className="text-[#c19b48] hover:text-[#a47d31] dark:hover:text-[#e8cf8d] font-semibold text-xs inline-flex items-center gap-1 self-start sm:self-auto shrink-0 transition-colors cursor-pointer group"
+            className="text-[#c19b48] hover:text-[#a47d31] dark:hover:text-[#e8cf8d] font-semibold text-xs inline-flex items-center gap-1 self-start sm:self-auto shrink-0 transition-colors cursor-pointer group min-h-8"
           >
             <span>Full Syllabus & Notes</span>
             <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -298,7 +303,7 @@ export const DashboardPreview: React.FC = () => {
       {/* 4. Command Center: Mains Challenge & Landmark Judgment in Flex */}
       <div className="flex flex-col lg:flex-row gap-6 items-stretch">
         {/* Today's Mains Answer Writing Challenge */}
-        <div className="flex-1 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] p-5 sm:p-6 shadow-xs transition-colors flex flex-col justify-between">
+        <div className="flex-1 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] p-4 sm:p-6 shadow-xs transition-colors flex flex-col justify-between">
           <div>
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -329,12 +334,12 @@ export const DashboardPreview: React.FC = () => {
             {isLoadingChallenge || !todayChallenge ? (
               <MainsChallengeSkeleton />
             ) : (
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]/70 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+              <div className="p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]/70 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                  <span className="min-w-0 font-semibold text-slate-700 dark:text-slate-300">
                     Paper: {todayChallenge.paper || 'Criminal Law & Procedure (Mains)'}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] font-mono text-[11px] text-[#c19b48] font-bold">
+                  <span className="self-start shrink-0 whitespace-nowrap px-2 py-1 rounded bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] font-mono text-[10px] sm:text-[11px] text-[#c19b48] font-bold">
                     {todayChallenge.marks ?? 15} Marks • {todayChallenge.wordLimit ?? 250} Words
                   </span>
                 </div>
@@ -374,7 +379,7 @@ export const DashboardPreview: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/dashboard/mains/questions')}
-                className="px-3.5 sm:px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
+                className="w-full sm:w-auto justify-center whitespace-nowrap px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] sm:text-xs cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
               >
                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                 <span>Copy Submitted (v{todaySubmission.version || 1}) • Replace</span>
@@ -393,7 +398,7 @@ export const DashboardPreview: React.FC = () => {
         </div>
 
         {/* Landmark Judgment & Legal Ratio of the Day */}
-        <div className="flex-1 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] p-5 sm:p-6 shadow-xs transition-colors flex flex-col justify-between">
+        <div className="flex-1 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] p-4 sm:p-6 shadow-xs transition-colors flex flex-col justify-between">
           <div>
             {/* Header */}
             <div className="flex items-center justify-between gap-3 mb-4">
@@ -433,12 +438,12 @@ export const DashboardPreview: React.FC = () => {
                 </div>
               </div>
             ) : dailyJudgement ? (
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]/70 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-serif font-bold text-slate-900 dark:text-white">
+              <div className="p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]/70 space-y-3">
+                <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                  <span className="w-full min-w-0 text-sm font-serif font-bold text-slate-900 dark:text-white">
                     {dailyJudgement.title} {dailyJudgement.citation ? (dailyJudgement.title.includes(dailyJudgement.citation) ? '' : `${dailyJudgement.citation.startsWith('(') ? '' : '('}${dailyJudgement.citation}${dailyJudgement.citation.endsWith(')') ? '' : ')'}`) : ''}
                   </span>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-[#0a1c36] text-slate-700 dark:text-slate-300 font-medium shrink-0">
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-[#0a1c36] text-slate-700 dark:text-slate-300 font-medium shrink-0 whitespace-nowrap">
                     {dailyJudgement.benchStrength || dailyJudgement.bench || '3-Judge Bench'}
                   </span>
                 </div>

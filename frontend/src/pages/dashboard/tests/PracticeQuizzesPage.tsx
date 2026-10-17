@@ -151,7 +151,7 @@ export const PracticeQuizzesPage: React.FC = () => {
 
       {/* Grid of Dynamic Bare Act Quizzes */}
       {!isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {categories.map((item) => {
             const progressPercent =
               item.totalQuestions > 0
@@ -164,11 +164,11 @@ export const PracticeQuizzesPage: React.FC = () => {
                 className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs hover:border-[#c19b48]/60 transition-all flex flex-col justify-between"
               >
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-[#143564]">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="shrink-0 whitespace-nowrap text-[9px] sm:text-[10px] font-mono px-2 py-1 rounded-md bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-[#143564]">
                       {item.totalQuestions} Curated MCQs
                     </span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                    <span className="shrink-0 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-bold text-[11px] sm:text-xs">
                       {item.accuracy} Accuracy
                     </span>
                   </div>
@@ -192,11 +192,11 @@ export const PracticeQuizzesPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 dark:border-[#143564] flex items-center justify-between">
+                <div className="pt-3 border-t border-slate-100 dark:border-[#143564] flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => handleResetAct(item.id, item.bareAct)}
-                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                    className="shrink-0 whitespace-nowrap text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     <RotateCcw className="w-3 h-3" />
                     <span>Reset</span>
@@ -206,7 +206,7 @@ export const PracticeQuizzesPage: React.FC = () => {
                     type="button"
                     onClick={() => handleStartSprint(item.bareAct)}
                     disabled={isLaunching}
-                    className="px-3.5 py-1.5 rounded-xl bg-[#0a1c36] dark:bg-[#143564] hover:bg-[#143564] text-white font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    className="shrink-0 whitespace-nowrap px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-[#0a1c36] dark:bg-[#143564] hover:bg-[#143564] text-white font-semibold text-[11px] sm:text-xs transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
                   >
                     <span>Practice Sections</span>
                   </button>

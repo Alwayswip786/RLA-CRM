@@ -347,7 +347,7 @@ export const NoticesPage: React.FC = () => {
                 <div
                   key={item._id}
                   onClick={() => setSelectedMobileNotice(item)}
-                  className={`p-3.5 rounded-2xl bg-white dark:bg-[#0a1c36] border shadow-xs flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] ${
+                  className={`min-w-0 p-3.5 rounded-2xl bg-white dark:bg-[#0a1c36] border shadow-xs flex items-start justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] ${
                     isUrgent
                       ? 'border-[#c19b48]/60 shadow-xs ring-1 ring-[#c19b48]/20'
                       : 'border-slate-200 dark:border-[#143564]'
@@ -365,29 +365,29 @@ export const NoticesPage: React.FC = () => {
                   </div>
 
                   {/* Middle Content */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase border ${badgeClass}`}>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <span className={`inline-flex max-w-full items-center text-[9px] leading-none px-1.5 py-1 rounded font-bold uppercase border whitespace-normal break-words ${badgeClass}`}>
                         {item.category}
                       </span>
                       {isUrgent && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/15 text-red-600 font-bold border border-red-500/30">
+                        <span className="inline-flex shrink-0 items-center gap-1 text-[9px] leading-none px-1.5 py-1 rounded bg-red-500/15 text-red-600 font-bold border border-red-500/30 whitespace-nowrap">
                           ● PRIORITY
                         </span>
                       )}
                     </div>
 
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 leading-tight">
+                    <h4 className="text-[13px] font-bold text-slate-900 dark:text-white leading-snug break-words [overflow-wrap:anywhere]">
                       {item.title}
                     </h4>
 
-                    <span className="text-[10px] text-slate-400 block truncate font-mono">
+                    <span className="text-[10px] text-slate-400 block break-words [overflow-wrap:anywhere] font-mono">
                       {item.circularNo}
                     </span>
                   </div>
 
                   {/* Right Chevron */}
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 ml-1 self-center" />
                 </div>
               );
             })}

@@ -5,7 +5,6 @@ import {
   FileText,
   Bookmark,
   CheckCircle2,
-  Sparkles,
   Loader2,
   Gavel,
 } from 'lucide-react';
@@ -81,24 +80,23 @@ export const BareActCard: React.FC<BareActCardProps> = ({
   };
 
   return (
-    <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/50 transition-all duration-200 shadow-xs flex flex-col justify-between group space-y-4">
+    <div className="min-w-0 p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/50 transition-all duration-200 shadow-xs flex flex-col justify-between group space-y-4">
       {/* Top Header Row */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 flex items-center gap-1.5 flex-wrap">
             <span
-              className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${getCategoryBadgeColor(
+              className={`inline-flex items-center max-w-full text-[9px] sm:text-[10px] leading-none px-2 sm:px-2.5 py-1 rounded-full font-bold uppercase whitespace-normal break-words border ${getCategoryBadgeColor(
                 note.category
               )}`}
             >
               {note.category}
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#143564]">
+            <span className="inline-flex shrink-0 items-center text-[10px] leading-none font-mono px-2 py-1 rounded bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#143564]">
               {note.actYear}
             </span>
             {note.isFeatured && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
-                <Sparkles className="w-2.5 h-2.5" />
                 Act in Focus
               </span>
             )}
@@ -120,30 +118,30 @@ export const BareActCard: React.FC<BareActCardProps> = ({
         </div>
 
         {/* Act Name & Sections Covered */}
-        <div>
-          <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors leading-snug">
+        <div className="min-w-0">
+          <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors leading-snug break-words [overflow-wrap:anywhere]">
             {note.actName}
           </h3>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#c19b48] dark:text-[#e8cf8d]">
+          <div className="flex flex-col items-start gap-1 mt-1">
+            <span className="inline-flex max-w-full items-start gap-1 text-[11px] font-semibold text-[#c19b48] dark:text-[#e8cf8d] break-words">
               <FileText className="w-3 h-3" />
               {note.sectionsCovered}
             </span>
             {note.chapter && (
-              <span className="text-[10px] text-slate-400 dark:text-slate-400 truncate">
-                • {note.chapter}
+              <span className="max-w-full text-[10px] text-slate-400 dark:text-slate-400 whitespace-normal break-words [overflow-wrap:anywhere]">
+                {note.chapter}
               </span>
             )}
           </div>
         </div>
 
         {/* Title */}
-        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-snug">
+        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-snug break-words [overflow-wrap:anywhere]">
           {note.title}
         </p>
 
         {/* Academic Overview */}
-        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
+        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed break-words [overflow-wrap:anywhere]">
           {note.description}
         </p>
 
@@ -156,7 +154,7 @@ export const BareActCard: React.FC<BareActCardProps> = ({
                 className="flex items-start gap-1.5 text-[11px] text-slate-600 dark:text-slate-300"
               >
                 <CheckCircle2 className="w-3 h-3 text-emerald-500 mt-0.5 shrink-0" />
-                <span className="line-clamp-1">{hl}</span>
+                <span className="min-w-0 break-words [overflow-wrap:anywhere]">{hl}</span>
               </div>
             ))}
           </div>
@@ -165,18 +163,18 @@ export const BareActCard: React.FC<BareActCardProps> = ({
         {/* Section Breakdown Pills & Precedent Cross-links */}
         <div className="flex items-center gap-1.5 flex-wrap pt-1">
           {note.sectionBreakdown && note.sectionBreakdown.length > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
+            <span className="inline-flex max-w-full items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564] whitespace-normal break-words">
               <BookOpen className="w-2.5 h-2.5 text-[#c19b48]" />
               {note.sectionBreakdown.length} Sections Index (TOC)
             </span>
           )}
           {note.relatedJudgements && note.relatedJudgements.length > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20">
+            <span className="inline-flex max-w-full items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20 whitespace-normal break-words">
               <Gavel className="w-2.5 h-2.5" />
               {note.relatedJudgements.length} Landmark Precedents
             </span>
           )}
-          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 font-medium">
+          <span className="max-w-full text-[10px] px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 font-medium whitespace-normal break-words">
             {note.difficulty}
           </span>
         </div>
@@ -189,7 +187,7 @@ export const BareActCard: React.FC<BareActCardProps> = ({
           <button
             type="button"
             onClick={() => onPreview(note)}
-            className="flex-1 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 border border-slate-200 dark:border-[#143564] cursor-pointer"
+            className="flex-1 min-w-0 whitespace-nowrap px-2 sm:px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white font-semibold text-[11px] sm:text-xs transition-colors flex items-center justify-center gap-1.5 border border-slate-200 dark:border-[#143564] cursor-pointer"
           >
             <BookOpen className="w-3.5 h-3.5 text-[#c19b48]" />
             <span>Read Online</span>
@@ -200,7 +198,7 @@ export const BareActCard: React.FC<BareActCardProps> = ({
             type="button"
             disabled={downloading}
             onClick={handleDownload}
-            className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+            className="flex-1 min-w-0 whitespace-nowrap px-2 sm:px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-[11px] sm:text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
           >
             {downloading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

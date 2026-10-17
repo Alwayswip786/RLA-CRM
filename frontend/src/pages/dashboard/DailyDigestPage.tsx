@@ -3,7 +3,6 @@ import {
   Newspaper,
   Download,
   Bookmark,
-  Sparkles,
   Share2,
   Calendar,
   Loader2,
@@ -173,24 +172,25 @@ export const DailyDigestPage: React.FC = () => {
         <button
           onClick={handleDownloadPdf}
           disabled={downloadingPdf}
-          className="px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+          title="Download today's brief as a PDF"
+          aria-label="Download Today's Brief as PDF"
+          className="flex-1 sm:flex-none justify-center px-3 sm:px-4 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-[11px] sm:text-xs transition-colors flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-xs disabled:opacity-50 whitespace-nowrap"
         >
           {downloadingPdf ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Download className="w-4 h-4" />
           )}
-          <span>Download Today's Brief (PDF)</span>
+          <span>Download Today's Brief</span>
         </button>
       </div>
 
       {/* 2. Featured Legal Maxim Hero Card */}
       {edition.featuredMaxim && (
-        <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#0a1c36] via-[#0f294a] to-[#143564] text-white border border-[#c19b48]/40 shadow-sm space-y-2.5">
-          <div className="flex items-center justify-between text-xs text-[#e8cf8d]">
-            <span className="flex items-center gap-1.5 font-bold tracking-wide">
-              <Sparkles className="w-3.5 h-3.5 text-[#c19b48]" />
-              <span>Legal Maxim of the Day</span>
+        <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-r from-[#0a1c36] via-[#0f294a] to-[#143564] text-white border border-[#c19b48]/40 shadow-sm space-y-2.5">
+          <div className="flex flex-col items-start gap-1 text-xs text-[#e8cf8d] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <span className="font-bold tracking-wide">
+              Legal Maxim of the Day
             </span>
             <span className="font-mono text-[11px] text-slate-300">
               {formatDateDisplay(edition.editionDateIST)}
@@ -231,19 +231,19 @@ export const DailyDigestPage: React.FC = () => {
             <div
               key={item.itemId}
               onClick={() => handleOpenItem(item)}
-              className="p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-3 shadow-xs hover:border-[#c19b48]/70 transition-all cursor-pointer group"
+              className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-3 shadow-xs hover:border-[#c19b48]/70 transition-all cursor-pointer group"
             >
               {/* Category & Action Row */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] border border-amber-200 dark:border-[#c19b48]/30">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex flex-col items-start gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+                  <span className="inline-flex whitespace-nowrap text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wide bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] border border-amber-200 dark:border-[#c19b48]/30">
                     {item.categoryBadge}
                   </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     {item.subject}
                   </span>
                   {isRead && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full font-semibold">
                       <CheckCircle2 className="w-3 h-3" />
                       <span>Read</span>
                     </span>

@@ -8,6 +8,7 @@ export function SegmentedTabs<T extends string = string>({
   className = '',
   size = 'md',
   fullWidthMobile = true,
+  hideIconsOnMobile = false,
   ariaLabel = 'Navigation tabs',
 }: SegmentedTabsProps<T>): React.ReactElement {
   // Determine grid columns on mobile based on items length
@@ -59,7 +60,11 @@ export function SegmentedTabs<T extends string = string>({
             )}
 
             {/* Icon */}
-            {item.icon && <span className="shrink-0">{item.icon}</span>}
+            {item.icon && (
+              <span className={`shrink-0 ${hideIconsOnMobile ? 'hidden sm:inline-flex' : ''}`}>
+                {item.icon}
+              </span>
+            )}
 
             {/* Label with Responsive Short-Label Fallback */}
             {item.shortLabel ? (

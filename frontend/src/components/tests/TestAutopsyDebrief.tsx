@@ -4,15 +4,10 @@ import {
   Award,
   CheckCircle,
   XCircle,
-  Bookmark,
   ArrowRight,
   RotateCcw,
-  Sparkles,
 } from 'lucide-react';
-import { toast } from '../../lib/toast';
-import { apiClient } from '../../lib/apiClient';
 import type { AutopsyReviewData } from '../../types/testEngine.types';
-import { SegmentedTabs } from '../ui/tabs';
 
 interface TestAutopsyDebriefProps {
   reviewData: AutopsyReviewData;
@@ -24,7 +19,6 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
   onRetakeOrReset,
 }) => {
   const [filterMode, setFilterMode] = useState<'all' | 'correct' | 'incorrect' | 'unattempted'>('all');
-  const [bookmarkedIds, setBookmarkedIds] = useState<Record<string, boolean>>({});
 
   if (!reviewData) {
     return (
@@ -50,33 +44,6 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
     percentile: 98.4,
   };
 
-  const handleToggleBookmark = async (q: any) => {
-    const isBookmarked = Boolean(bookmarkedIds[q._id]);
-    setBookmarkedIds({ ...bookmarkedIds, [q._id]: !isBookmarked });
-
-    try {
-      await apiClient.post('/bookmarks/toggle', {
-        itemType: 'MCQ',
-        itemId: q.code || q._id,
-        title: q.questionText,
-        source: `${q.actName} - ${q.sectionOrArticle || 'Section Question'}`,
-        subject: q.subject,
-        metadata: {
-          options: (q.options || []).map((opt: string, i: number) => ({
-            key: ['A', 'B', 'C', 'D'][i],
-            text: opt,
-          })),
-          correctOption: ['A', 'B', 'C', 'D'][q.correctOptionIndex],
-          explanation: q.explanation,
-        },
-      });
-      toast.success(isBookmarked ? 'Removed from Starred Vault' : '⭐ Saved to Starred Questions & Vault');
-    } catch (err) {
-      console.error('Failed to star question:', err);
-      toast.error('Failed to update bookmark.');
-    }
-  };
-
   const filteredQuestions = (reviewData?.questions || []).filter((q) => {
     if (filterMode === 'correct') return q.isCorrect === true;
     if (filterMode === 'incorrect') return q.selectedOption !== null && q.selectedOption !== undefined && q.isCorrect === false;
@@ -95,29 +62,29 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
     : new Date().toLocaleDateString('en-IN');
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+    <div className="w-full min-w-0 max-w-5xl mx-auto space-y-5 sm:space-y-6 animate-in fade-in duration-300">
       {/* Hero Debrief Banner */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-sm relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Exam Autopsy & Comprehensive Debrief</span>
+      <div className="min-w-0 p-4 sm:p-6 lg:p-8 rounded-3xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] shadow-sm relative overflow-hidden">
+        <div className="flex min-w-0 flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+          <div className="min-w-0 space-y-2">
+            <div className="max-w-full inline-flex items-center px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[#c19b48] dark:text-[#e8cf8d] text-xs font-semibold">
+              <span className="break-words">Exam Autopsy & Comprehensive Debrief</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-slate-900 dark:text-white break-words">
               {reviewData.title || 'Practice Quiz Sprint'}
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Submitted on {submittedDateFormatted} • Performance automatically synced to Scorecards & Rank Analysis
-            </p>
+            <div className="text-xs text-slate-500 dark:text-slate-400 break-words leading-relaxed space-y-0.5">
+              <p>Submitted on {submittedDateFormatted}</p>
+              <p>Performance synced to Scorecards & Rank Analysis</p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="w-full md:w-auto grid grid-cols-1 sm:grid-cols-2 md:flex items-stretch gap-2 sm:gap-3">
             {onRetakeOrReset && (
               <button
                 type="button"
                 onClick={onRetakeOrReset}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-slate-200 font-semibold text-xs border border-slate-200 dark:border-[#143564] transition-colors flex items-center gap-2 cursor-pointer"
+                className="w-full min-h-11 md:w-auto px-3 sm:px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-slate-200 font-semibold text-xs border border-slate-200 dark:border-[#143564] transition-colors flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Practice Again</span>
@@ -126,7 +93,7 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
 
             <Link
               to="/dashboard/tests/results"
-              className="px-4 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-semibold text-xs transition-colors flex items-center gap-2 shadow-sm"
+              className="w-full min-h-11 md:w-auto px-3 sm:px-4 py-2.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
             >
               <span>View All Scorecards</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -135,26 +102,26 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
         </div>
 
         {/* 4 Hero Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-100 dark:border-[#143564]">
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-5 sm:mt-6 pt-5 sm:pt-6 border-t border-slate-100 dark:border-[#143564]">
+          <div className="min-w-0 p-2.5 sm:p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
             <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Score Achieved</span>
-            <div className="text-2xl font-bold font-mono text-[#c19b48] dark:text-[#e8cf8d] mt-0.5">
-              {summary.score} / {summary.maxScore}
+            <div className="text-xl sm:text-2xl font-bold font-mono text-[#c19b48] dark:text-[#e8cf8d] mt-0.5 leading-tight whitespace-nowrap">
+              {summary.score}
             </div>
-            <span className="text-[10px] text-slate-500">Max possible: {summary.maxScore} pts</span>
+            <span className="text-[10px] text-slate-500">of {summary.maxScore} pts</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
+          <div className="min-w-0 p-2.5 sm:p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
             <span className="text-[11px] text-slate-500 dark:text-slate-400 block">All-India Standing</span>
-            <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+            <div className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
               AIR #{summary.rank || 14}
             </div>
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{summary.percentile || 98.4}th Percentile</span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
+          <div className="min-w-0 p-2.5 sm:p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
             <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Accuracy Rate</span>
-            <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5">
+            <div className="text-lg sm:text-2xl font-bold font-mono text-slate-900 dark:text-white mt-0.5 whitespace-nowrap">
               {summary.accuracy}%
             </div>
             <span className="text-[10px] text-slate-500">
@@ -162,9 +129,9 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
             </span>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
+          <div className="min-w-0 p-2.5 sm:p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
             <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Negative Penalty</span>
-            <div className="text-2xl font-bold font-mono text-red-500 mt-0.5">
+            <div className="text-lg sm:text-2xl font-bold font-mono text-red-500 mt-0.5 whitespace-nowrap">
               -{summary.negativeMarks} Pts
             </div>
             <span className="text-[10px] text-slate-500">{summary.incorrect} wrong answers</span>
@@ -173,76 +140,56 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
+      <div className="min-w-0 flex flex-col gap-3 pt-1 sm:pt-2">
+        <div className="min-w-0 flex flex-wrap items-center gap-2">
+          <h3 className="min-w-0 text-base font-serif font-bold text-slate-900 dark:text-white break-words">
             Question-by-Question Solution Analysis
           </h3>
-          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#143564] text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-[#143564] text-xs font-semibold text-slate-700 dark:text-slate-300">
             {filteredQuestions.length} Questions
           </span>
         </div>
 
-        <SegmentedTabs<'all' | 'correct' | 'incorrect' | 'unattempted'>
-          value={filterMode}
-          onChange={setFilterMode}
-          size="sm"
-          items={[
-            {
-              id: 'all',
-              label: `All (${summary.totalQuestions})`,
-              shortLabel: `All (${summary.totalQuestions})`,
-            },
-            {
-              id: 'correct',
-              label: `Correct (${summary.correct})`,
-              shortLabel: `Correct (${summary.correct})`,
-              badgeVariant: 'success',
-            },
-            {
-              id: 'incorrect',
-              label: `Incorrect (${summary.incorrect})`,
-              shortLabel: `Wrong (${summary.incorrect})`,
-              badgeVariant: 'danger',
-            },
-            {
-              id: 'unattempted',
-              label: `Skipped (${summary.unattempted})`,
-              shortLabel: `Skip (${summary.unattempted})`,
-            },
-          ]}
-        />
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 p-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564]">
+          {([
+            ['all', 'All', summary.totalQuestions],
+            ['correct', 'Correct', summary.correct],
+            ['incorrect', 'Incorrect', summary.incorrect],
+            ['unattempted', 'Skipped', summary.unattempted],
+          ] as const).map(([id, label, count]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setFilterMode(id)}
+              aria-pressed={filterMode === id}
+              className={`min-w-0 min-h-10 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors sm:flex-1 sm:basis-0 ${
+                filterMode === id
+                  ? 'bg-[#c19b48] text-[#061120] shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-white/5'
+              }`}
+            >
+              {label} ({count})
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Questions Autopsy Feed */}
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         {filteredQuestions.map((q, qIndex) => {
           const isAttempted = q.selectedOption !== null && q.selectedOption !== undefined;
           const isUserCorrect = q.isCorrect === true;
-          const isStarred = Boolean(bookmarkedIds[q._id]);
-
           return (
             <div
               key={q._id || qIndex}
-              className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs"
+              className="min-w-0 p-4 sm:p-5 lg:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] space-y-4 shadow-xs"
             >
               {/* Card Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#061120] font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
+              <div className="min-w-0 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="max-w-full font-mono text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-[#061120] font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564] break-words">
                     Q{qIndex + 1} • {q.code}
                   </span>
-                  <span className="text-xs font-semibold text-[#c19b48] dark:text-[#e8cf8d]">
-                    {q.actName}
-                  </span>
-                  {q.sectionOrArticle && (
-                    <span className="text-xs text-slate-400">
-                      ({q.sectionOrArticle})
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
                   {isAttempted ? (
                     isUserCorrect ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
@@ -259,23 +206,13 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
                     </span>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => handleToggleBookmark(q)}
-                    className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                      isStarred
-                        ? 'bg-[#c19b48]/20 border-[#c19b48] text-[#c19b48]'
-                        : 'border-slate-200 dark:border-[#143564] text-slate-400 hover:text-[#c19b48]'
-                    }`}
-                    title="Star question to personal revision vault"
-                  >
-                    <Bookmark className="w-4 h-4" fill={isStarred ? 'currentColor' : 'none'} />
-                  </button>
                 </div>
+                <p className="text-sm font-semibold text-[#c19b48] dark:text-[#e8cf8d] break-words leading-snug">{q.actName}</p>
+                {q.sectionOrArticle && <p className="text-xs text-slate-400 break-words leading-snug">{q.sectionOrArticle}</p>}
               </div>
 
               {/* Question Statement */}
-              <div className="text-sm font-medium text-slate-900 dark:text-white leading-relaxed">
+              <div className="text-sm sm:text-base font-medium text-slate-900 dark:text-white leading-relaxed break-words [overflow-wrap:anywhere]">
                 {q.questionText}
               </div>
 
@@ -295,26 +232,14 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
                   return (
                     <div
                       key={optIdx}
-                      className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${optClass}`}
+                      aria-label={`Option ${['A', 'B', 'C', 'D'][optIdx]}${isCorrectAnswer ? ', correct answer' : ''}${isUserSelection ? ', your selection' : ''}`}
+                      className={`min-w-0 p-3 rounded-xl border flex items-start gap-2.5 text-xs transition-all ${optClass}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="w-5 h-5 rounded-full font-bold font-mono text-[10px] flex items-center justify-center bg-slate-200 dark:bg-[#143564] text-slate-800 dark:text-slate-200">
-                          {['A', 'B', 'C', 'D'][optIdx]}
-                        </span>
-                        <span>{optText}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isUserSelection && (
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-200 dark:bg-[#143564] text-slate-700 dark:text-slate-200">
-                            Your Choice
-                          </span>
-                        )}
-                        {isCorrectAnswer && (
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500 text-white flex items-center gap-1">
-                            <CheckCircle className="w-3 h-3" /> Correct Answer
-                          </span>
-                        )}
+                      <span className="w-5 h-5 shrink-0 rounded-full font-bold font-mono text-[10px] flex items-center justify-center bg-slate-200 dark:bg-[#143564] text-slate-800 dark:text-slate-200">
+                        {['A', 'B', 'C', 'D'][optIdx]}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{optText}</p>
                       </div>
                     </div>
                   );
@@ -327,7 +252,7 @@ export const TestAutopsyDebrief: React.FC<TestAutopsyDebriefProps> = ({
                   <Award className="w-4 h-4 text-[#c19b48]" />
                   <span>Statutory Analysis & Precedents</span>
                 </div>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                   {q.explanation}
                 </p>
                 {q.landmarkCases && q.landmarkCases.length > 0 && (
