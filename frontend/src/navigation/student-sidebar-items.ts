@@ -63,8 +63,6 @@ export const studentSidebarItems: NavGroup[] = [
         title: 'Live Classroom',
         url: '/dashboard/live-classes',
         icon: Video,
-        badge: 'LIVE',
-        badgeColor: 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse',
       },
       {
         id: 'timetable',

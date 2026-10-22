@@ -38,25 +38,25 @@ export const PyqPaperCard: React.FC<PyqPaperCardProps> = ({
   };
 
   return (
-    <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all shadow-xs flex flex-col justify-between space-y-4 group">
+    <div className="min-w-0 p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all shadow-xs flex flex-col justify-between space-y-4 group">
       <div className="space-y-3">
         {/* Top Badges */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
+          <span className="inline-flex items-center max-w-full text-[10px] leading-none px-2.5 py-1 rounded-full font-bold uppercase tracking-wider bg-slate-100 dark:bg-[#061120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#143564] whitespace-normal break-words">
             {paper.exam}
           </span>
-          <span className="font-mono text-xs font-bold text-[#c19b48] dark:text-[#e8cf8d] bg-[#c19b48]/10 px-2 py-0.5 rounded">
+          <span className="inline-flex items-center shrink-0 font-mono text-[11px] sm:text-xs leading-none font-bold text-[#c19b48] dark:text-[#e8cf8d] bg-[#c19b48]/10 px-2 py-1 rounded">
             {paper.year} • {paper.stage}
           </span>
         </div>
 
         {/* Paper Title */}
-        <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors line-clamp-2">
+        <h3 className="min-w-0 text-base font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors leading-snug break-words [overflow-wrap:anywhere]">
           {paper.title}
         </h3>
 
         {/* Subject description */}
-        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed break-words [overflow-wrap:anywhere]">
           {paper.description || paper.subject}
         </p>
 
@@ -66,7 +66,7 @@ export const PyqPaperCard: React.FC<PyqPaperCardProps> = ({
             {paper.topics.slice(0, 3).map((topic, idx) => (
               <span
                 key={idx}
-                className="text-[10px] px-2 py-0.5 rounded-md bg-slate-50 dark:bg-[#061120]/80 text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-[#143564]/60 font-medium"
+                className="max-w-full text-[10px] px-2 py-0.5 rounded-md bg-slate-50 dark:bg-[#061120]/80 text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-[#143564]/60 font-medium break-words"
               >
                 #{topic}
               </span>
@@ -80,14 +80,14 @@ export const PyqPaperCard: React.FC<PyqPaperCardProps> = ({
         )}
 
         {/* Faculty Model Answers Attribution */}
-        <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium pt-1">
+        <div className="flex items-start gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium pt-1 min-w-0">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Solved by: {paper.solvedByFaculty}</span>
+          <span className="min-w-0 break-words [overflow-wrap:anywhere]">Solved by: {paper.solvedByFaculty}</span>
         </div>
 
         {/* Metadata stats bar */}
-        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-[#143564]/50">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-[11px] text-slate-400 pt-2 border-t border-slate-100 dark:border-[#143564]/50">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1">
               <Award className="w-3 h-3 text-[#c19b48]" />
               <span>{paper.totalMarks} Marks</span>
@@ -104,16 +104,16 @@ export const PyqPaperCard: React.FC<PyqPaperCardProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-3 border-t border-slate-100 dark:border-[#143564]/60 flex items-center justify-between gap-2">
+      <div className="pt-3 border-t border-slate-100 dark:border-[#143564]/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="text-[11px] text-slate-400 font-mono">
           {paper.downloadCount > 0 ? `${paper.downloadCount} downloads` : 'New paper'}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full sm:w-auto items-center gap-2">
           {/* Read Online Button */}
           <button
             onClick={() => onPreview(paper)}
-            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-[#143564]"
+            className="flex-1 sm:flex-none min-w-0 whitespace-nowrap justify-center px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-[11px] sm:text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer border border-slate-200 dark:border-[#143564]"
           >
             <BookOpen className="w-3.5 h-3.5 text-[#c19b48]" />
             <span>Read Online</span>
@@ -123,7 +123,7 @@ export const PyqPaperCard: React.FC<PyqPaperCardProps> = ({
           <button
             onClick={handleDownload}
             disabled={downloading}
-            className="px-3 py-1.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+            className="flex-1 sm:flex-none min-w-0 whitespace-nowrap justify-center px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl bg-[#c19b48] hover:bg-[#d8b862] text-[#061120] font-bold text-[11px] sm:text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
           >
             {downloading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

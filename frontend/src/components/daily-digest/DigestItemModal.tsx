@@ -8,7 +8,6 @@ import {
   FileText,
   Download,
   ExternalLink,
-  BookOpen,
   HelpCircle,
   Gavel,
   Eye,
@@ -82,51 +81,53 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl my-8 bg-white dark:bg-[#0a1c36] rounded-2xl border border-slate-200 dark:border-[#143564] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-2 sm:p-4 overflow-hidden animate-in fade-in duration-200">
+      <div className="relative w-full max-w-3xl max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] min-h-0 my-auto bg-white dark:bg-[#0a1c36] rounded-2xl border border-slate-200 dark:border-[#143564] shadow-2xl overflow-hidden flex flex-col">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-[#143564] bg-slate-50/50 dark:bg-[#061120]">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] border border-amber-200 dark:border-[#c19b48]/30">
+        <div className="relative shrink-0 px-4 py-3 pr-14 sm:px-6 sm:py-4 sm:pr-16 border-b border-slate-200 dark:border-[#143564] bg-slate-50/50 dark:bg-[#061120]">
+          <div className="min-w-0 flex flex-col items-start gap-2">
+            <span className="max-w-full text-[10px] px-2.5 py-1.5 rounded-full font-bold uppercase leading-tight text-center bg-amber-50 dark:bg-[#c19b48]/15 text-[#c19b48] dark:text-[#e8cf8d] border border-amber-200 dark:border-[#c19b48]/30">
               {item.categoryBadge}
             </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400 font-medium whitespace-normal break-words">
               {item.subject}
             </span>
+
+            <div className="mt-1 flex items-center gap-3">
+              <button
+                onClick={handleToggleBookmark}
+                className={`w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 ${
+                  bookmarked ? 'text-[#c19b48]' : 'text-slate-400 hover:text-[#c19b48]'
+                }`}
+                title={bookmarked ? 'Remove from Starred Vault' : 'Save to Starred Vault'}
+                aria-label={bookmarked ? 'Remove from Starred Vault' : 'Save to Starred Vault'}
+              >
+                <Bookmark className={`w-4 h-4 ${bookmarked ? 'fill-current' : ''}`} />
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                title="Share brief"
+                aria-label="Share brief"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleToggleBookmark}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                bookmarked
-                  ? 'bg-amber-50 text-[#c19b48] border-[#c19b48]'
-                  : 'text-slate-400 border-slate-200 dark:border-[#143564] hover:text-[#c19b48]'
-              }`}
-              title={bookmarked ? 'Remove from Starred Vault' : 'Save to Starred Vault'}
-            >
-              <Bookmark className="w-4 h-4 fill-current" />
-            </button>
-
-            <button
-              onClick={handleShare}
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-[#143564] text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
-              title="Share brief"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#143564] transition-colors cursor-pointer ml-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 sm:top-4 sm:right-5 w-9 h-9 inline-flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            aria-label="Close digest details"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
+        <div className="min-w-0 flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6 text-xs">
           {/* Title & Citation */}
           <div className="space-y-2">
             <h2 className="text-lg sm:text-xl font-serif font-bold text-slate-900 dark:text-white leading-snug">
@@ -134,7 +135,7 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
             </h2>
 
             {item.citation && (
-              <p className="font-mono font-bold text-xs text-[#c19b48] dark:text-[#e8cf8d]">
+              <p className="font-mono font-bold text-xs text-[#c19b48] dark:text-[#e8cf8d] break-words [overflow-wrap:anywhere]">
                 {item.citation}
               </p>
             )}
@@ -163,71 +164,70 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
 
           {/* Legal Provisions Pills */}
           {item.legalProvisions && item.legalProvisions.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <div className="space-y-2">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
                 Applicable Statutory Provisions
               </span>
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-2">
                 {item.legalProvisions.map((prov, i) => (
-                  <span
+                  <div
                     key={i}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-slate-700 dark:text-slate-300 font-mono text-[11px]"
+                    className="min-w-0 flex flex-col gap-0.5 pl-3 py-1 border-l-2 border-[#c19b48]/50 whitespace-normal break-words [overflow-wrap:anywhere]"
                   >
-                    <BookOpen className="w-3 h-3 text-[#c19b48]" />
-                    <strong className="text-slate-900 dark:text-white">{prov.sectionOrArticle}</strong>
+                    <strong className="min-w-0 break-words font-mono text-[11px] text-slate-900 dark:text-white">{prov.sectionOrArticle}</strong>
                     {prov.actOrCode && (
-                      <span className="text-slate-400 font-sans">({prov.actOrCode})</span>
+                      <span className="min-w-0 break-words text-[11px] text-slate-500 dark:text-slate-400">{prov.actOrCode}</span>
                     )}
-                  </span>
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
           {/* Executive Ratio & Summary */}
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="space-y-2">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
               Ratio Decidendi / Legal Principle
             </span>
-            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50/70 dark:bg-[#061120]/70 p-4 rounded-xl border border-slate-200 dark:border-[#143564]">
+            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed break-words [overflow-wrap:anywhere]">
               {item.summary}
             </p>
           </div>
 
           {/* Full Markdown Analysis (if available) */}
           {item.fullText && (
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <div className="space-y-2">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
                 Detailed Analytical Dossier
               </span>
-              <div className="prose prose-xs dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line bg-slate-50 dark:bg-[#061120] p-4 rounded-xl border border-slate-200 dark:border-[#143564]">
+              <div className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]">
                 {item.fullText}
               </div>
             </div>
           )}
 
           {/* Judicial Examination Tip Container */}
-          <div className="p-4 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/30 text-xs space-y-1">
-            <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-bold uppercase tracking-wider text-[11px]">
+          <div className="pl-3 py-1 border-l-2 border-amber-400/70 text-xs space-y-1.5">
+            <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-semibold text-[11px]">
               <HelpCircle className="w-4 h-4 text-[#c19b48]" />
               <span>Judicial Examination Directive (Mains / Prelims)</span>
             </div>
-            <p className="text-slate-700 dark:text-slate-200 leading-relaxed">
+            <p className="text-slate-700 dark:text-slate-200 leading-relaxed break-words [overflow-wrap:anywhere]">
               {item.examinationTip}
             </p>
           </div>
 
           {/* Cross Module Links: Related Landmark Judgment or Mains Question */}
           {(item.relatedJudgementId || item.relatedMainsId) && (
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] space-y-2.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <div className="space-y-2.5">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
                 Integrated Academy Modules
               </span>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                 {item.relatedJudgementId && typeof item.relatedJudgementId === 'object' && (
                   <Link
                     to="/dashboard/judgments"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#c19b48]/15 border border-[#c19b48]/30 text-[#c19b48] hover:bg-[#c19b48]/25 text-xs font-semibold transition-colors"
+                    className="inline-flex min-w-0 items-center gap-2 px-3 py-2 rounded-lg bg-[#c19b48]/10 text-[#c19b48] hover:bg-[#c19b48]/20 text-xs font-semibold transition-colors"
                   >
                     <Scale className="w-3.5 h-3.5" />
                     <span>View in Landmark Judgement Vault</span>
@@ -238,7 +238,7 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
                 {item.relatedMainsId && typeof item.relatedMainsId === 'object' && (
                   <Link
                     to="/dashboard/mains"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 text-xs font-semibold transition-colors"
+                    className="inline-flex min-w-0 items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-xs font-semibold transition-colors"
                   >
                     <FileText className="w-3.5 h-3.5" />
                     <span>Attempt in Daily Mains Clinic</span>
@@ -250,21 +250,21 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
           )}
 
           {/* Source Reference & Attached PDF */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-[#143564] text-[11px] text-slate-500">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-[#143564] text-[11px] text-slate-500">
+            <div className="min-w-0 flex-1">
               {item.sourceReference && (
-                <span>
+                <span className="break-words [overflow-wrap:anywhere]">
                   Source: <strong className="text-slate-700 dark:text-slate-300">{item.sourceReference}</strong>
                 </span>
               )}
             </div>
 
             {item.pdfFile && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsPdfModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-[#c19b48] border border-[#c19b48]/30 font-semibold text-xs cursor-pointer transition-colors shadow-xs"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-[#c19b48] font-semibold text-xs cursor-pointer transition-colors w-full sm:w-auto"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>Read Attached PDF</span>
@@ -285,15 +285,6 @@ export const DigestItemModal: React.FC<DigestItemModalProps> = ({
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="flex items-center justify-end px-6 py-3 bg-slate-50/50 dark:bg-[#061120] border-t border-slate-200 dark:border-[#143564]">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-200 dark:bg-[#143564] text-slate-700 dark:text-white text-xs font-semibold hover:bg-slate-300 dark:hover:bg-[#1c4786] transition-colors cursor-pointer"
-          >
-            Close
-          </button>
-        </div>
       </div>
 
       {/* In-App Universal PDF Modal */}

@@ -87,25 +87,25 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
   });
 
   return (
-    <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all shadow-xs flex flex-col justify-between space-y-4 group">
+    <div className="min-w-0 p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/60 transition-all shadow-xs flex flex-col justify-between space-y-4 group">
       <div className="space-y-3.5">
         {/* Top Badges */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="space-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span
-              className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${getImportanceBadge(
+              className={`inline-flex items-center max-w-full text-[10px] leading-none px-2.5 py-1 rounded-full font-bold uppercase tracking-wider border ${getImportanceBadge(
                 judgement.importance
               )}`}
             >
               {judgement.importance}
             </span>
-            <span className="text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564]">
+            <span className="inline-flex items-center max-w-full text-[11px] leading-none px-2.5 py-1 rounded-full font-medium bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#143564] whitespace-normal break-words">
               {judgement.court}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold text-[#c19b48] dark:text-[#e8cf8d] bg-[#c19b48]/10 px-2.5 py-0.5 rounded border border-[#c19b48]/20">
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="min-w-0 flex-1 font-mono text-[11px] sm:text-xs font-bold text-[#c19b48] dark:text-[#e8cf8d] bg-[#c19b48]/10 px-2.5 py-1 rounded border border-[#c19b48]/20 whitespace-normal break-words [overflow-wrap:anywhere]">
               {judgement.citation}
             </span>
 
@@ -113,7 +113,7 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
               type="button"
               onClick={handleToggleBookmark}
               title={bookmarked ? 'Remove from Starred Vault' : 'Save to Starred Vault'}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+              className={`shrink-0 p-1.5 rounded-lg border transition-colors cursor-pointer ${
                 bookmarked
                   ? 'bg-[#c19b48]/20 border-[#c19b48]/40 text-[#c19b48]'
                   : 'bg-slate-50 dark:bg-[#061120] border-slate-200 dark:border-[#143564] text-slate-400 hover:text-[#c19b48]'
@@ -125,29 +125,25 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
         </div>
 
         {/* Case Title */}
-        <div>
-          <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors leading-snug">
+        <div className="min-w-0">
+          <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white group-hover:text-[#c19b48] transition-colors leading-snug break-words [overflow-wrap:anywhere]">
             {judgement.title}
           </h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
-            <span>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-y-1 sm:gap-x-3 text-xs text-slate-500 dark:text-slate-400 mt-2">
+            <span className="break-words">
               <strong>Coram:</strong> {judgement.bench}
             </span>
-            <span>•</span>
             <span>Decided: {formattedDate}</span>
             {judgement.subject && (
-              <>
-                <span>•</span>
-                <span className="text-[#c19b48] dark:text-[#e8cf8d] font-medium">
-                  {judgement.subject}
-                </span>
-              </>
+              <span className="text-[#c19b48] dark:text-[#e8cf8d] font-medium break-words">
+                {judgement.subject}
+              </span>
             )}
           </div>
         </div>
 
         {/* Executive Summary */}
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed break-words [overflow-wrap:anywhere]">
           {judgement.summary}
         </p>
 
@@ -158,9 +154,9 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
               className="flex items-center justify-between cursor-pointer select-none"
               onClick={() => setExpandedRatio(!expandedRatio)}
             >
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
-                <Scale className="w-3.5 h-3.5 text-[#c19b48]" />
-                <span>3-Point Ratio Decidendi (Mains Ready)</span>
+              <div className="min-w-0 flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                <Scale className="w-3.5 h-3.5 text-[#c19b48] shrink-0" />
+                <span className="min-w-0 break-words">3-Point Ratio Decidendi (Mains Ready)</span>
               </div>
               <button
                 type="button"
@@ -180,7 +176,7 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
                       <span className="shrink-0 w-5 h-5 rounded-full bg-amber-100 dark:bg-[#c19b48]/20 text-[#c19b48] dark:text-[#e8cf8d] font-mono text-[10px] font-bold flex items-center justify-center mt-0.5">
                         {roman}
                       </span>
-                      <span>{point}</span>
+                      <span className="min-w-0 break-words [overflow-wrap:anywhere]">{point}</span>
                     </li>
                   );
                 })}
@@ -193,7 +189,7 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
         {judgement.mainsUtility && (
           <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50/50 dark:bg-[#c19b48]/10 border border-amber-200/60 dark:border-[#c19b48]/20 text-xs text-slate-700 dark:text-slate-300">
             <Award className="w-4 h-4 text-[#c19b48] shrink-0 mt-0.5" />
-            <div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere]">
               <strong className="text-slate-900 dark:text-white">Mains Answer Utility:</strong>{' '}
               {judgement.mainsUtility}
             </div>
@@ -204,7 +200,7 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
         {judgement.overruledPrecedents && (
           <div className="flex items-start gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-[11px] text-red-700 dark:text-red-400">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <div>
+            <div className="min-w-0 break-words [overflow-wrap:anywhere]">
               <strong>Precedent Note:</strong> {judgement.overruledPrecedents}
             </div>
           </div>
@@ -240,7 +236,7 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
         <button
           type="button"
           onClick={() => onPreview(judgement)}
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-700 dark:text-slate-200 font-semibold text-xs border border-slate-200 dark:border-[#143564] transition-colors cursor-pointer"
+          className="flex-1 min-w-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-[#c19b48] hover:text-[#061120] text-slate-700 dark:text-slate-200 font-semibold text-[11px] sm:text-xs border border-slate-200 dark:border-[#143564] transition-colors cursor-pointer"
         >
             <BookOpen className="w-3.5 h-3.5" />
             <span>Read Digest</span>
@@ -252,7 +248,7 @@ export const JudgementCard: React.FC<JudgementCardProps> = ({
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#c19b48] hover:bg-[#d4ae58] text-[#061120] font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+              className="flex-1 min-w-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-2 sm:py-1.5 rounded-xl bg-[#c19b48] hover:bg-[#d4ae58] text-[#061120] font-semibold text-[11px] sm:text-xs transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
             >
               {downloading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />

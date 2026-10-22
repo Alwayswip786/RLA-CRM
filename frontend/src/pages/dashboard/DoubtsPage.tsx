@@ -101,6 +101,8 @@ export const DoubtsPage: React.FC = () => {
         {/* Tab Switcher Buttons */}
         <SegmentedTabs<'queries' | 'chamber'>
           value="queries"
+          size="sm"
+          hideIconsOnMobile
           onChange={(tab) => {
             if (tab === 'chamber') navigate('/dashboard/chamber');
           }}

@@ -19,6 +19,7 @@ export interface SegmentedTabsProps<T = string> {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   fullWidthMobile?: boolean;
+  hideIconsOnMobile?: boolean;
   variant?: 'pill' | 'card';
   ariaLabel?: string;
 }

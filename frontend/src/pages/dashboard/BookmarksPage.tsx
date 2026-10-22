@@ -10,7 +10,6 @@ import {
   ExternalLink,
   Edit3,
   Check,
-  Sparkles,
   Loader2,
   ChevronDown,
   ChevronUp,
@@ -210,11 +209,11 @@ export const BookmarksPage: React.FC = () => {
             return (
               <div
                 key={item._id}
-                className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/40 transition-all duration-200 space-y-4 shadow-xs group"
+                className="p-4 sm:p-6 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] hover:border-[#c19b48]/40 transition-all duration-200 space-y-4 shadow-xs group"
               >
                 {/* Header Row */}
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex min-w-0 flex-col sm:flex-row sm:items-center gap-2">
                     {/* Item Type Badge */}
                     <span
                       className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase ${badge.className}`}
@@ -225,19 +224,19 @@ export const BookmarksPage: React.FC = () => {
 
                     {/* Source Pill */}
                     {item.source && (
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#143564] max-w-[280px] sm:max-w-[420px] truncate">
+                      <span className="w-fit max-w-full text-[11px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-[#061120] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#143564] whitespace-normal break-words [overflow-wrap:anywhere]">
                         {item.source}
                       </span>
                     )}
 
                     {/* Subject Tag */}
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#061120] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#143564]">
+                    <span className="w-fit max-w-full text-[10px] px-2 py-1 rounded-md bg-slate-100 dark:bg-[#061120] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#143564] whitespace-normal break-words">
                       {item.subject}
                     </span>
                   </div>
 
                   {/* Actions & Timestamp */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-end gap-2">
                     <span className="text-[11px] text-slate-400">{formattedDate}</span>
 
                     {/* Delete Star Button */}
@@ -252,7 +251,7 @@ export const BookmarksPage: React.FC = () => {
                 </div>
 
                 {/* Title / Question */}
-                <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white leading-relaxed">
+                <h3 className="min-w-0 text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white leading-relaxed break-words [overflow-wrap:anywhere]">
                   {item.title}
                 </h3>
 
@@ -368,10 +367,9 @@ export const BookmarksPage: React.FC = () => {
                 )}
 
                 {/* Aspirant's Annotation Box with Inline Editing */}
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs space-y-2">
-                  <div className="flex items-center justify-between">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Sparkles className="w-3 h-3 text-[#c19b48]" />
                       <span>Aspirant's Annotation:</span>
                     </span>
 
@@ -434,7 +432,7 @@ export const BookmarksPage: React.FC = () => {
                 </div>
 
                 {/* Footer Strip: Tags & Jump to Source Action */}
-                <div className="pt-2 flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 dark:border-[#143564]/60">
+                <div className="pt-3 flex flex-col items-stretch gap-3 border-t border-slate-100 dark:border-[#143564]/60">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {item.tags &&
                       item.tags.map((tag, idx) => (
@@ -450,7 +448,7 @@ export const BookmarksPage: React.FC = () => {
                   {/* Jump to Source Button */}
                   <button
                     onClick={() => handleJumpToSource(item)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white font-semibold text-xs transition-colors border border-slate-200 dark:border-[#143564] cursor-pointer"
+                    className="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#061120] hover:bg-slate-200 dark:hover:bg-[#143564] text-slate-800 dark:text-white font-semibold text-xs transition-colors border border-slate-200 dark:border-[#143564] cursor-pointer whitespace-nowrap"
                   >
                     <span>Jump to Source</span>
                     <ExternalLink className="w-3 h-3 text-[#c19b48]" />

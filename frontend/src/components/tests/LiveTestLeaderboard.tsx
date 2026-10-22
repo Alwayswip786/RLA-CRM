@@ -91,7 +91,7 @@ export const LiveTestLeaderboard: React.FC = () => {
         <div className="space-y-6">
           {/* Top 3 Podium Showcase */}
           {rows.length >= 3 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               {/* 2nd Place */}
               {top2 && (
                 <div className="order-2 md:order-1 p-5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col items-center text-center space-y-3 relative shadow-xs">
@@ -209,10 +209,10 @@ export const LiveTestLeaderboard: React.FC = () => {
 
           {/* Full Rankings Table */}
           <div className="rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] overflow-hidden shadow-xs">
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-[#143564] flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="p-3 sm:p-5 border-b border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="min-w-0 flex items-center gap-2">
                 <Users className="w-4 h-4 text-[#c19b48]" />
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                <span className="min-w-0 text-sm font-bold text-slate-900 dark:text-white break-words">
                   Official All-India Candidates ({leaderboardData.totalCandidates})
                 </span>
               </div>
@@ -224,7 +224,7 @@ export const LiveTestLeaderboard: React.FC = () => {
               )}
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="hidden xl:block overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-[#143564] bg-slate-50 dark:bg-[#061120] text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] font-bold">
@@ -298,33 +298,94 @@ export const LiveTestLeaderboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile rankings: stacked rows keep every metric readable without a wide table. */}
+            <div className="xl:hidden divide-y divide-slate-100 dark:divide-[#143564]/50">
+              {rows.length === 0 ? (
+                <p className="py-10 px-4 text-center text-xs text-slate-400">
+                  No official attempts recorded yet for this exam.
+                </p>
+              ) : (
+                rows.map((row) => (
+                  <article
+                    key={`mobile-${row.attemptId}`}
+                    className={`p-3 sm:p-4 ${row.isCurrentUser ? 'bg-emerald-500/10 dark:bg-emerald-500/15' : ''}`}
+                  >
+                    <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-start gap-2.5">
+                      <span className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#061120] flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-200">
+                        #{row.rank}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="min-w-0 break-words text-sm font-bold text-slate-900 dark:text-white">
+                            {row.name}
+                          </span>
+                          {row.isCurrentUser && (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wider">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <span className="mt-0.5 block break-words text-[10px] font-mono text-slate-400">
+                          {row.rollNumber}
+                        </span>
+                      </div>
+                      <div className="min-w-[4.25rem] text-right">
+                        <span className="block text-[10px] text-slate-400">Score</span>
+                        <span className="break-words font-mono text-xs font-bold text-slate-900 dark:text-white">
+                          {row.score} pts
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 pl-[2.85rem] text-[11px]">
+                      <div className="min-w-0">
+                        <span className="block text-[10px] text-slate-400">Accuracy</span>
+                        <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{row.accuracy}%</span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] text-slate-400">Deductions</span>
+                        <span className="font-mono font-semibold text-red-500">-{row.negativeMarks} pts</span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] text-slate-400">Time Taken</span>
+                        <span className="font-mono text-slate-600 dark:text-slate-300">{formatDuration(row.durationUsedSeconds)}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] text-slate-400">Percentile</span>
+                        <span className="font-mono font-semibold text-[#c19b48] dark:text-[#e8cf8d]">{row.percentile} %ile</span>
+                      </div>
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Sticky Pinned Current User Card */}
           {currentUser && (
-            <div className="p-4 rounded-2xl bg-emerald-600 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold text-base">
+            <div className="p-4 sm:p-5 rounded-2xl bg-emerald-700 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="min-w-0 flex items-start gap-3">
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-white/15 flex items-center justify-center font-bold text-base">
                   #{currentUser.rank}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-bold text-sm">Your Official Merit Rank</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 uppercase font-bold">
+                    <span className="w-fit text-[9px] px-2 py-1 rounded-full bg-white/15 uppercase font-bold leading-tight">
                       All-India Validated
                     </span>
                   </div>
-                  <p className="text-xs text-emerald-100 mt-0.5">
+                  <p className="text-xs text-emerald-100 leading-relaxed break-words">
                     Scored {currentUser.score} / {currentUser.maxScore} points with {currentUser.accuracy}% accuracy
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-xs">
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-4 text-xs">
                 <div>
                   <span className="text-[10px] text-emerald-200 block">Percentile</span>
                   <span className="font-bold text-sm font-mono">{currentUser.percentile}%ile</span>
                 </div>
-                <div className="border-l border-white/20 pl-4">
+                <div className="sm:border-l border-white/20 sm:pl-4">
                   <span className="text-[10px] text-emerald-200 block">Total Candidates</span>
                   <span className="font-bold text-sm font-mono">{leaderboardData.totalCandidates}</span>
                 </div>

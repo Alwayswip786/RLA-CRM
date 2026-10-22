@@ -211,6 +211,7 @@ export const LiveClassesPage: React.FC = () => {
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [isCcActive, setIsCcActive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showFullscreenChat, setShowFullscreenChat] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
 
   // Archives State
@@ -235,6 +236,7 @@ export const LiveClassesPage: React.FC = () => {
   const socketRef = useRef<Socket | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const carouselTrackRef = useRef<HTMLDivElement | null>(null);
+  const liveVideoRef = useRef<HTMLDivElement | null>(null);
 
   // Lock body scroll while in fullscreen chamber
   useEffect(() => {
@@ -248,11 +250,32 @@ export const LiveClassesPage: React.FC = () => {
   // Sync Fullscreen state
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isPlayerFullscreen = document.fullscreenElement === liveVideoRef.current;
+      setIsFullscreen(isPlayerFullscreen);
+      if (!isPlayerFullscreen) setShowFullscreenChat(false);
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  // F toggles the player fullscreen; Escape exits through the browser fullscreen API.
+  useEffect(() => {
+    const handlePlayerKeys = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping = target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '');
+      if (isTyping || event.altKey || event.ctrlKey || event.metaKey) return;
+
+      if (event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        toggleFullscreen();
+      } else if (event.key === 'Escape' && !document.fullscreenElement && isFullscreen) {
+        setIsFullscreen(false);
+        setShowFullscreenChat(false);
+      }
+    };
+    window.addEventListener('keydown', handlePlayerKeys);
+    return () => window.removeEventListener('keydown', handlePlayerKeys);
+  }, [isFullscreen]);
 
   // Visual Viewport resize handler for mobile keyboard
   useEffect(() => {
@@ -273,12 +296,26 @@ export const LiveClassesPage: React.FC = () => {
   };
 
   // Toggle Native Fullscreen
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) {
+      if (document.fullscreenElement === liveVideoRef.current) {
+        await document.exitFullscreen().catch(() => {});
+      }
+      return;
     }
+
+    const player = liveVideoRef.current;
+    if (!player) return;
+
+    if (player.requestFullscreen) {
+      try {
+        await player.requestFullscreen();
+        return;
+      } catch {
+        // Use the fixed-position fallback on browsers that reject element fullscreen.
+      }
+    }
+    setIsFullscreen(true);
   };
 
   // 1. Fetch Current Live Class Data
@@ -554,14 +591,9 @@ export const LiveClassesPage: React.FC = () => {
             <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5 text-slate-800 dark:text-slate-200" />
           </button>
 
-          <h1 className="font-serif font-bold text-sm sm:text-base md:text-lg text-slate-900 dark:text-white truncate flex items-center gap-2">
+          <h1 className="min-w-0 font-serif font-bold text-sm sm:text-base md:text-lg leading-tight text-slate-900 dark:text-white whitespace-normal break-words">
             <span>Live Classroom Chamber</span>
           </h1>
-
-          <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] sm:text-[11px] font-bold tracking-wider uppercase flex items-center gap-1.5 shrink-0 shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            <span>LIVE</span>
-          </span>
         </div>
 
         {/* Center / Right Side: Attendees, Tabs Switcher, Fullscreen & Settings */}
@@ -601,7 +633,7 @@ export const LiveClassesPage: React.FC = () => {
           <button
             onClick={toggleFullscreen}
             className="p-2 rounded-xl border border-slate-200 dark:border-[#143564] bg-white dark:bg-[#0a1c36] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#c19b48] transition-colors cursor-pointer hidden sm:flex items-center justify-center"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Chamber'}
+            title={isFullscreen ? 'Exit Video Fullscreen (Esc)' : 'Fullscreen Video (F)'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -654,9 +686,14 @@ export const LiveClassesPage: React.FC = () => {
         ) : (
           <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-3 lg:gap-4 p-2.5 sm:p-4 overflow-y-auto md:overflow-hidden">
           {/* LEFT COLUMN: Main Video Player & Session Info Bar */}
-          <div className="flex-1 min-w-0 flex flex-col justify-between overflow-hidden">
+          <div className="flex-none md:flex-1 md:min-h-0 min-w-0 flex flex-col md:justify-between md:overflow-hidden">
             {/* Video Player Canvas */}
-            <div className="relative aspect-video w-full rounded-2xl bg-[#061120] border border-slate-200 dark:border-[#143564] overflow-hidden flex flex-col items-center justify-center shadow-lg group select-none">
+            <div
+              ref={liveVideoRef}
+              className={`relative w-full aspect-video shrink-0 md:aspect-auto md:flex-1 md:min-h-[180px] bg-[#061120] border border-slate-200 dark:border-[#143564] overflow-hidden flex flex-col items-center justify-center shadow-lg group select-none ${
+                isFullscreen ? 'fixed inset-0 z-[100] h-[100dvh] w-screen max-h-none aspect-auto rounded-none border-0' : 'rounded-2xl'
+              }`}
+            >
               {/* Simulated Judicial Classroom Blackboard & Faculty Presentation */}
               <div className="absolute inset-0 bg-[#08121e] flex items-center justify-center overflow-hidden">
                 {/* Chalkboard Texture Background */}
@@ -773,6 +810,47 @@ export const LiveClassesPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Fullscreen-only comments overlay, opened from the player controls. */}
+              {isFullscreen && showFullscreenChat && (
+                <aside className="live-classroom-fullscreen-comments flex flex-col rounded-2xl bg-white/95 dark:bg-[#0a1c36]/95 backdrop-blur-md border border-slate-200 dark:border-[#143564] shadow-2xl overflow-hidden">
+                  <div className="shrink-0 p-3 border-b border-slate-200 dark:border-[#143564] flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-[#c19b48]" />
+                      <h3 className="text-xs font-bold uppercase tracking-wide">Live Classroom Chat</h3>
+                    </div>
+                    <button type="button" onClick={() => setShowFullscreenChat(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Close live comments">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-3">
+                    {messages.map((m) => {
+                      const isFaculty = m.isFacultyMessage || m.role === 'faculty';
+                      const initials = m.sender.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+                      return (
+                        <div key={`fullscreen-${m.id}`} className="flex gap-2.5 items-start text-xs">
+                          <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center font-bold text-[10px] ${isFaculty ? 'bg-[#c19b48] text-[#061120]' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}>
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                              <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{m.sender}{isFaculty && <span className="ml-1 text-[#c19b48] font-bold">Faculty</span>}</span>
+                              <span className="shrink-0 pl-1">{m.time}</span>
+                            </div>
+                            <div className={`p-2.5 rounded-xl text-[11px] leading-relaxed ${isFaculty ? 'bg-amber-50 dark:bg-[#c19b48]/15 border border-amber-200 dark:border-[#c19b48]/40 text-slate-900 dark:text-slate-100' : 'bg-slate-100 dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-slate-800 dark:text-slate-200'}`}>
+                              {m.text}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <form onSubmit={handleSendMessage} className="shrink-0 p-2.5 border-t border-slate-200 dark:border-[#143564] flex items-center gap-2">
+                    <input type="text" value={newMsg} onChange={(e) => setNewMsg(e.target.value)} placeholder="Ask Rajinder Sir a doubt..." className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-[#061120] border border-slate-200 dark:border-[#143564] text-xs focus:outline-none focus:border-[#c19b48]" />
+                    <button type="submit" className="p-2 rounded-xl bg-[#c19b48] text-[#061120]" aria-label="Send live comment"><Send className="w-4 h-4" /></button>
+                  </form>
+                </aside>
+              )}
+
               {/* OVERLAY: Bottom Custom Video Controls Bar */}
               <div className="absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-black/75 backdrop-blur-md border border-white/10 text-white text-xs z-20">
                 {/* Left Controls: Play/Pause, Live Indicator & Volume */}
@@ -819,6 +897,14 @@ export const LiveClassesPage: React.FC = () => {
 
                 {/* Right Controls: CC, Speed, PiP, Fullscreen */}
                 <div className="flex items-center gap-1.5 sm:gap-2.5 relative">
+                  <button
+                    onClick={() => setShowFullscreenChat((open) => !open)}
+                    className={`p-1 transition-colors cursor-pointer ${showFullscreenChat ? 'text-[#e8cf8d]' : 'hover:text-[#c19b48]'}`}
+                    title={showFullscreenChat ? 'Close Live Comments' : 'Open Live Comments'}
+                    aria-label={showFullscreenChat ? 'Close live comments' : 'Open live comments'}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </button>
                   {/* Closed Captions */}
                   <button
                     onClick={() => {
@@ -871,58 +957,64 @@ export const LiveClassesPage: React.FC = () => {
                   <button
                     onClick={toggleFullscreen}
                     className="p-1 hover:text-[#c19b48] transition-colors cursor-pointer"
-                    title="Fullscreen"
+                    title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Fullscreen (F)'}
+                    aria-label={isFullscreen ? 'Exit video fullscreen' : 'Enter video fullscreen'}
                   >
-                    <Maximize2 className="w-4 h-4" />
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Session Information & Action Controls Bar */}
-            <div className="mt-2.5 sm:mt-3 p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs shrink-0">
+            <div className="mt-2.5 sm:mt-3 p-2.5 sm:p-3.5 rounded-2xl bg-white dark:bg-[#0a1c36] border border-slate-200 dark:border-[#143564] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shadow-xs shrink-0">
               {/* Session Time & Faculty Mentorship Details */}
-              <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-700 dark:text-slate-300">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#c19b48] shrink-0" />
-                  <span>
-                    Session Started: <strong className="text-slate-900 dark:text-white">7:00 PM</strong> (Ends 8:30 PM)
-                  </span>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1.5 sm:gap-6 text-[11px] sm:text-xs text-slate-700 dark:text-slate-300">
+                <div className="min-w-0 flex items-start sm:items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#c19b48] shrink-0 mt-0.5 sm:mt-0" />
+                  <p className="min-w-0 leading-snug">
+                    <span className="font-semibold text-slate-500 dark:text-slate-400">Session:</span>{' '}
+                    Started <strong className="text-slate-900 dark:text-white">7:00 PM</strong> · Ends <strong className="text-slate-900 dark:text-white">8:30 PM</strong>
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2 border-l border-slate-200 dark:border-[#143564] pl-3 sm:pl-6">
-                  <User className="w-4 h-4 text-[#c19b48] shrink-0" />
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-white block">
+                <div className="min-w-0 flex items-start sm:items-center gap-2 border-l-0 sm:border-l sm:border-slate-200 sm:dark:border-[#143564] sm:pl-6">
+                  <User className="w-4 h-4 text-[#c19b48] shrink-0 mt-0.5 sm:mt-0" />
+                  <p className="min-w-0 leading-snug">
+                    <span className="font-semibold text-slate-500 dark:text-slate-400">Faculty:</span>{' '}
+                    <strong className="font-bold text-slate-900 dark:text-white">
                       {liveClass?.facultyName || 'Adv. Sharma'}
-                    </span>
+                    </strong>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400"> · </span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400">
                       {liveClass?.facultyTitle || 'Criminal Law Specialist'}
                     </span>
-                  </div>
+                  </p>
                 </div>
               </div>
 
               {/* Action Buttons: Handout (PDF) & Add to Notes */}
-              <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto">
+              <div className="flex items-center gap-2 self-stretch sm:self-auto w-full sm:w-auto">
                 <button
                   onClick={handleOpenHandout}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d4ad53] text-[#061120] text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  className="flex-1 sm:flex-none min-w-0 inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-[#c19b48] hover:bg-[#d4ad53] text-[#061120] text-[10px] sm:text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-3.5 h-3.5 shrink-0" />
                   <span>Class Handout (PDF)</span>
                 </button>
 
                 <button
                   onClick={handleAddToNotes}
-                  className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  title={isBookmarked ? 'Saved to Notes' : 'Add to Notes'}
+                  aria-label={isBookmarked ? 'Saved to Notes' : 'Add to Notes'}
+                  className={`w-10 sm:w-auto sm:flex-none shrink-0 inline-flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-2 rounded-xl border text-[10px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     isBookmarked
                       ? 'bg-amber-100 dark:bg-[#c19b48]/20 border-[#c19b48] text-[#c19b48]'
                       : 'border-slate-200 dark:border-[#143564] text-slate-700 dark:text-slate-200 hover:border-[#c19b48]'
                   }`}
                 >
-                  <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current text-[#c19b48]' : ''}`} />
-                  <span>{isBookmarked ? 'Saved to Notes' : 'Add to Notes'}</span>
+                  <Bookmark className={`w-3.5 h-3.5 shrink-0 ${isBookmarked ? 'fill-current text-[#c19b48]' : ''}`} />
+                  <span className="hidden sm:inline">{isBookmarked ? 'Saved to Notes' : 'Add to Notes'}</span>
                 </button>
               </div>
             </div>
@@ -1169,20 +1261,14 @@ export const LiveClassesPage: React.FC = () => {
                 {ses.isLive ? <Play className="w-3 h-3 fill-current ml-0.5" /> : <Clock className="w-3 h-3" />}
               </div>
 
-              <div className="truncate">
-                <span className="font-bold text-slate-900 dark:text-white block text-[11px] truncate">
+              <div className="w-36 sm:w-44 min-w-0">
+                <span className="font-bold text-slate-900 dark:text-white block text-[11px] whitespace-normal break-words leading-tight">
                   {ses.title}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block whitespace-normal break-words leading-tight">
                   {ses.subtitle}
                 </span>
               </div>
-
-              {ses.isLive && (
-                <span className="px-1.5 py-0.2 rounded-full bg-red-600 text-white font-bold text-[9px] uppercase tracking-wider shrink-0 animate-pulse">
-                  LIVE
-                </span>
-              )}
             </div>
           ))}
         </div>

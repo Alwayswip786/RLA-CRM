@@ -191,7 +191,7 @@ export const PyqArchivePage: React.FC = () => {
       ) : (
         // Grid of Papers + Streaming Batches
         <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid min-w-0 grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-5">
             {papers.map((paper) => (
               <PyqPaperCard
                 key={paper._id}

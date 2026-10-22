@@ -318,16 +318,18 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
         {/* Error Fallback */}
         {error && (
-          <div className="w-full flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+          <div className="w-full min-w-0 flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center max-w-md mx-auto space-y-3">
+            <div className="w-12 h-12 shrink-0 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
               <AlertCircle className="w-6 h-6" />
             </div>
             <h4 className="text-sm font-bold text-white">Document Preview Failed</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">{error}</p>
+            <p className="w-full min-w-0 max-w-full px-1 text-[11px] sm:text-xs text-slate-400 leading-relaxed whitespace-pre-wrap break-all [overflow-wrap:anywhere]">
+              {error}
+            </p>
             <button
               type="button"
               onClick={loadPdf}
-              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+              className="mt-2 max-w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Retry Rendering</span>
