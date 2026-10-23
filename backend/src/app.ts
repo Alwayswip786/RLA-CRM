@@ -49,27 +49,53 @@ app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 // 1. Cross-Origin Resource Sharing
-app.use(
-    cors({
-        origin: CORS_ORIGIN,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: [
-            'Content-Type',
-            'Authorization',
-            'X-Request-Id',
-            'X-Session-ID',
-            'X-Platform',
-            'X-App-Version',
-            'X-Idempotency-Key',
-            'Idempotency-Key',
-        ],
-        credentials: true,
-        optionsSuccessStatus: 200,
-    })
-);
+const allowedOriginsSet = new Set(CORS_ORIGIN);
+
+const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        // Allow any localhost / 127.0.0.1 port (frontend/admin dev servers on 5173, 5174, 5175, etc.)
+        const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+        if (isLocalhost || allowedOriginsSet.has(origin) || NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+
+        return callback(null, false);
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Request-Id',
+        'X-Session-ID',
+        'X-Platform',
+        'X-App-Version',
+        'X-Idempotency-Key',
+        'Idempotency-Key',
+        'X-RLA-Token-Fallback',
+        'x-rla-token-fallback',
+        'Accept',
+        'X-Requested-With',
+        'Origin',
+    ],
+    exposedHeaders: ['X-Request-Id', 'Content-Disposition'],
+    credentials: true,
+    optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // 2. HTTP Security Headers
-app.use(helmet());
+app.use(
+    helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+    })
+);
 
 // 3. Response Compression
 app.use(compression());

@@ -9,7 +9,9 @@ export const seedInitialAdmin = async (): Promise<void> => {
 
     // 1. Director & Academic Dean (Executive Admin)
     const directorEmail = 'director@rajinderlawacademy.com';
-    const directorExists = await User.findOne({ email: directorEmail });
+    const directorExists = await User.findOne({
+      $or: [{ email: directorEmail }, { rollNo: 'RLA-DIR-001' }],
+    });
     if (!directorExists) {
       await User.create({
         rollNo: 'RLA-DIR-001',
@@ -31,7 +33,9 @@ export const seedInitialAdmin = async (): Promise<void> => {
 
     // 2. Senior Faculty & Mains Evaluator (Faculty)
     const facultyEmail = 'faculty@rajinderlawacademy.com';
-    const facultyExists = await User.findOne({ email: facultyEmail });
+    const facultyExists = await User.findOne({
+      $or: [{ email: facultyEmail }, { rollNo: 'RLA-FAC-001' }],
+    });
     if (!facultyExists) {
       await User.create({
         rollNo: 'RLA-FAC-001',

@@ -150,7 +150,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   }
 
   const user = await User.findOne({
-    $or: [{ email: { $in: lookupEmails } }, { rollNo: trimmed.toUpperCase() }],
+    $or: [{ email: { $in: lookupEmails } }, { rollNo: trimmed.toUpperCase() }, { phone: trimmed }],
   })
     .select('+password +authVersion +refreshTokens')
     .populate('adminRoleId');
