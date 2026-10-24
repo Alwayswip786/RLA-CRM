@@ -46,6 +46,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     <div className="h-screen h-[100dvh] bg-[#F7F3E6] dark:bg-[#040b14] flex text-slate-900 dark:text-slate-100 font-sans transition-colors selection:bg-[#c19b48]/30 selection:text-amber-900 dark:selection:text-[#faf3e2] overflow-hidden">
       {/* Sidebar */}
       <StudentSidebar
+        onExpand={() => {
+          setIsCollapsed(false);
+          localStorage.setItem('rla_sidebar_collapsed', 'false');
+        }}
         isCollapsed={isCollapsed}
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}

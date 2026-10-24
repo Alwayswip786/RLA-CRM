@@ -218,3 +218,26 @@ html.theme-transitioning *::after {
     transform: none !important;
   }
 }
+
+/* Reveal desktop navigation after the rail has started opening. */
+@keyframes student-sidebar-reveal {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .student-sidebar .student-sidebar-reveal {
+    animation: student-sidebar-reveal 220ms ease-out 100ms both;
+  }
+
+  .student-sidebar button,
+  .student-sidebar a {
+    transition-property: width, height, min-height, padding, background-color, color, border-color;
+    transition-duration: 350ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .student-sidebar .student-sidebar-reveal > span:first-child {
+    white-space: nowrap;
+  }
+}

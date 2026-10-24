@@ -19,12 +19,14 @@ interface StudentSidebarProps {
   isCollapsed: boolean;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
+  onExpand: () => void;
 }
 
 export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   isCollapsed,
   isMobileOpen,
   onCloseMobile,
+  onExpand,
 }) => {
   const isDesktop = useIsDesktop(1024);
   // On mobile & tablet portrait (< 1024px) or whenever the slide-over drawer is open,
@@ -157,7 +159,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
   }, [initRealtimeListener]);
 
   const toggleSubMenu = (id: string) => {
-    setOpenSubMenus((prev) => ({ ...prev, [id]: !prev[id] }));
+    if (isEffectiveCollapsed) onExpand();
+    setOpenSubMenus((prev) => ({ ...prev, [id]: isEffectiveCollapsed || !prev[id] }));
   };
 
   const isLinkActive = (url?: string) => {
@@ -203,7 +206,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           'lg:static lg:h-full lg:shrink-0 lg:z-30',
           // GPU-accelerated slide transition on mobile, width transition on desktop
           'transition-transform duration-300 ease-out will-change-transform motion-reduce:transition-none motion-reduce:transform-none',
-          'lg:transition-[width] lg:duration-300 lg:ease-in-out',
+          'student-sidebar lg:transition-[width] lg:duration-350 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:motion-reduce:transition-none',
           // Desktop width
           isEffectiveCollapsed ? 'lg:w-18' : 'lg:w-76',
           // Mobile & Tablet Portrait width and slide position
@@ -255,14 +258,17 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
         </div>
 
         {/* 2. Middle: Navigation Links (Scrollable) */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar px-4 py-3 space-y-4 overscroll-contain">
+        <div className={cn(
+          'flex-1 overflow-y-auto overflow-x-hidden no-scrollbar py-3 overscroll-contain transition-[padding] duration-350 motion-reduce:transition-none',
+          isEffectiveCollapsed ? 'px-3 space-y-2' : 'px-4 space-y-4'
+        )}>
           {studentSidebarItems.map((group) => (
             <div key={group.id} className="space-y-1">
               {group.label && (
                 <h4
                   className={cn(
                     'px-2.5 text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider transition-all duration-200 overflow-hidden whitespace-nowrap',
-                    isEffectiveCollapsed ? 'opacity-0 h-0 my-0 pointer-events-none' : 'opacity-100 mb-1.5'
+                    isEffectiveCollapsed ? 'hidden' : 'student-sidebar-reveal opacity-100 mb-1.5'
                   )}
                 >
                   {group.label}
@@ -318,12 +324,15 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           key={item.id}
                           type="button"
                           onClick={() => {
+                            if (isEffectiveCollapsed) onExpand();
                             setIsIdModalOpen(true);
                             onCloseMobile();
                           }}
                           title={isEffectiveCollapsed ? item.title : undefined}
+                          aria-label={isEffectiveCollapsed ? item.title : undefined}
                           className={cn(
                             'w-full min-h-10 py-1 flex items-center rounded-xl text-xs font-medium transition-colors group relative text-left border border-transparent shrink-0',
+                            isEffectiveCollapsed && 'w-11 h-11 min-h-11 p-0 justify-center',
                             'text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
                           )}
                         >
@@ -334,8 +343,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                             className={cn(
                               'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
                               isEffectiveCollapsed
-                                ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none overflow-hidden'
-                                : 'opacity-100 w-auto pr-2.5 translate-x-0'
+                                ? 'hidden'
+                                : 'student-sidebar-reveal opacity-100 w-auto pr-2.5 translate-x-0'
                             )}
                           >
                             <span className="min-w-0 flex-1 break-words leading-tight">{item.title}</span>
@@ -358,10 +367,15 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                       <Link
                         key={item.id}
                         to={item.url || '#'}
-                        onClick={() => onCloseMobile()}
+                        onClick={() => {
+                          if (isEffectiveCollapsed) onExpand();
+                          onCloseMobile();
+                        }}
                         title={isEffectiveCollapsed ? item.title : undefined}
+                        aria-label={isEffectiveCollapsed ? item.title : undefined}
                         className={cn(
                           'w-full min-h-10 py-1 flex items-center rounded-xl text-xs font-medium transition-colors group relative shrink-0',
+                          isEffectiveCollapsed && 'w-11 h-11 min-h-11 p-0 justify-center',
                           active
                             ? 'bg-[#c19b48] text-[#061120] font-semibold shadow-xs border border-[#a88232]/40 dark:border-[#e8cf8d]/30'
                             : 'border border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
@@ -382,8 +396,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           className={cn(
                             'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
                             isEffectiveCollapsed
-                              ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none overflow-hidden'
-                              : 'opacity-100 w-auto pr-2.5 translate-x-0'
+                              ? 'hidden'
+                              : 'student-sidebar-reveal opacity-100 w-auto pr-2.5 translate-x-0'
                           )}
                         >
                           <span className="min-w-0 flex-1 break-words leading-tight">{item.title}</span>
@@ -409,8 +423,10 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                         type="button"
                         onClick={() => toggleSubMenu(item.id)}
                         title={isEffectiveCollapsed ? item.title : undefined}
+                        aria-label={isEffectiveCollapsed ? item.title : undefined}
                         className={cn(
                           'w-full min-h-10 py-1 flex items-center rounded-xl text-xs font-medium transition-colors group text-left cursor-pointer shrink-0',
+                          isEffectiveCollapsed && 'w-11 h-11 min-h-11 p-0 justify-center',
                           active
                             ? 'bg-slate-200/70 dark:bg-[#0a1c36] text-slate-900 dark:text-white border border-slate-300 dark:border-[#143564]'
                             : 'border border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-[#0a1c36] hover:text-slate-900 dark:hover:text-white'
@@ -423,8 +439,8 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                           className={cn(
                             'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
                             isEffectiveCollapsed
-                              ? 'opacity-0 w-0 pr-0 -translate-x-2 pointer-events-none overflow-hidden'
-                              : 'opacity-100 w-auto pr-2.5 translate-x-0'
+                              ? 'hidden'
+                              : 'student-sidebar-reveal opacity-100 w-auto pr-2.5 translate-x-0'
                           )}
                         >
                           <span className="min-w-0 flex-1 break-words leading-tight">{item.title}</span>
@@ -451,10 +467,11 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                       {/* Sub Items (Only visible when expanded) */}
                       {hasSub && (
                         <div
+                          inert={isEffectiveCollapsed || !isParentOpen}
                           className={cn(
-                            'pl-6 pr-1 space-y-1 border-l border-slate-300 dark:border-[#143564]/50 ml-5 transition-all duration-200 overflow-hidden',
+                            'pl-6 pr-1 space-y-1 border-l border-slate-300 dark:border-[#143564]/50 ml-5 transition-[max-height,opacity,margin,padding] duration-350 ease-in-out motion-reduce:transition-none overflow-hidden',
                             !isEffectiveCollapsed && isParentOpen
-                              ? 'max-h-[480px] opacity-100 my-1 py-1'
+                              ? 'max-h-[480px] opacity-100 my-1 py-1 student-sidebar-reveal'
                               : 'max-h-0 opacity-0 my-0 py-0 pointer-events-none'
                           )}
                         >
@@ -487,7 +504,10 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
         </div>
 
         {/* 3. Footer Area: Student Profile */}
-        <div className="p-4 border-t border-slate-200 dark:border-[#143564]/60 space-y-2 shrink-0 bg-slate-100/60 dark:bg-[#040b14]/50 overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className={cn(
+          'p-4 border-t border-slate-200 dark:border-[#143564]/60 space-y-2 shrink-0 bg-slate-100/60 dark:bg-[#040b14]/50 overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))]',
+          isEffectiveCollapsed && 'px-3'
+        )}>
           {/* Student Profile Row */}
           <div className="flex items-center min-h-10 rounded-xl bg-white dark:bg-[#0a1c36]/60 border border-slate-200 dark:border-[#143564]/50 shadow-xs w-full shrink-0">
             <div className="w-10 h-10 flex items-center justify-center shrink-0">
@@ -499,7 +519,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
             <div
               className={cn(
                 'flex items-center justify-between flex-1 min-w-0 gap-1 transition-all duration-200',
-                isEffectiveCollapsed ? 'opacity-0 w-0 pr-0 pointer-events-none overflow-hidden' : 'opacity-100 w-auto pr-2'
+                isEffectiveCollapsed ? 'hidden' : 'student-sidebar-reveal opacity-100 w-auto pr-2'
               )}
             >
               <div className="flex-1 min-w-0 pr-1">
